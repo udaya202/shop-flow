@@ -15,6 +15,7 @@ import customerRoutes from "./routes/customerRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import superAdminRoutes from "./routes/superAdminRoutes.js";
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/super-admin", superAdminRoutes);
 
 async function startServer() {
   try {

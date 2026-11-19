@@ -7,6 +7,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import 'super_admin.dart';
+
 // =====================================================
 // SHOPFLOW CONFIGURATION
 // =====================================================
@@ -359,7 +361,6 @@ class AuthService {
     return data;
   }
 
-
   Future<Map<String, dynamic>> registerShop({
     required String shopName,
     required String ownerName,
@@ -425,10 +426,7 @@ class AuthService {
 
   // Dashboard metrics are scoped by the authenticated tenant on the server.
   Future<Map<String, dynamic>> getDashboardSummary() async {
-    final response = await dio.get(
-      '/dashboard/summary',
-      options: authOptions,
-    );
+    final response = await dio.get('/dashboard/summary', options: authOptions);
     return Map<String, dynamic>.from(response.data['data'] ?? {});
   }
 
@@ -443,7 +441,6 @@ class AuthService {
   Future<void> deleteProduct(String id) async {
     await dio.delete('/products/$id', options: authOptions);
   }
-
 
   // CUSTOMER MANAGEMENT
   Future<List<dynamic>> getCustomers({String search = ''}) async {
@@ -468,7 +465,10 @@ class AuthService {
   }
 
   Future<List<dynamic>> getCustomerSales(String id) async {
-    final response = await dio.get('/customers/$id/sales', options: authOptions);
+    final response = await dio.get(
+      '/customers/$id/sales',
+      options: authOptions,
+    );
     return List<dynamic>.from(response.data['data'] ?? []);
   }
 
@@ -481,7 +481,11 @@ class AuthService {
   Future<Map<String, dynamic>> saveCompanySettings(
     Map<String, dynamic> data,
   ) async {
-    final response = await dio.put('/company', data: data, options: authOptions);
+    final response = await dio.put(
+      '/company',
+      data: data,
+      options: authOptions,
+    );
     return Map<String, dynamic>.from(response.data['data'] ?? {});
   }
 
@@ -532,9 +536,21 @@ class AuthService {
   }
 
   // REPORTS AND EXPENSES (owner / manager)
-  Future<Map<String, dynamic>> getReport({String period = 'daily', DateTime? date}) async {
-    final dateText = date == null ? null : '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    final response = await dio.get('/reports/summary', queryParameters: { 'period': period, if (dateText != null) 'date': dateText }, options: authOptions);
+  Future<Map<String, dynamic>> getReport({
+    String period = 'daily',
+    DateTime? date,
+  }) async {
+    final dateText = date == null
+        ? null
+        : '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final response = await dio.get(
+      '/reports/summary',
+      queryParameters: {
+        'period': period,
+        if (dateText != null) 'date': dateText,
+      },
+      options: authOptions,
+    );
     return Map<String, dynamic>.from(response.data['data'] ?? {});
   }
 
@@ -558,7 +574,8 @@ class AuthService {
         'amountPaid': amountPaid,
         'discountAmount': discountAmount,
         'note': note,
-        if (customerId != null && customerId.isNotEmpty) 'customerId': customerId,
+        if (customerId != null && customerId.isNotEmpty)
+          'customerId': customerId,
       },
       options: authOptions,
     );
@@ -566,7 +583,6 @@ class AuthService {
     return Map<String, dynamic>.from(response.data['data']);
   }
 }
-
 
 // =====================================================
 // CUSTOMER MANAGEMENT
@@ -613,7 +629,8 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       if (!mounted) return;
       setState(() {
         loading = false;
-        errorMessage = e.response?.data?['message']?.toString() ??
+        errorMessage =
+            e.response?.data?['message']?.toString() ??
             'Unable to load customers';
       });
     } catch (_) {
@@ -626,11 +643,21 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   }
 
   Future<void> showCustomerDialog({Map<String, dynamic>? customer}) async {
-    final name = TextEditingController(text: customer?['name']?.toString() ?? '');
-    final phone = TextEditingController(text: customer?['phone']?.toString() ?? '');
-    final email = TextEditingController(text: customer?['email']?.toString() ?? '');
-    final address = TextEditingController(text: customer?['address']?.toString() ?? '');
-    final notes = TextEditingController(text: customer?['notes']?.toString() ?? '');
+    final name = TextEditingController(
+      text: customer?['name']?.toString() ?? '',
+    );
+    final phone = TextEditingController(
+      text: customer?['phone']?.toString() ?? '',
+    );
+    final email = TextEditingController(
+      text: customer?['email']?.toString() ?? '',
+    );
+    final address = TextEditingController(
+      text: customer?['address']?.toString() ?? '',
+    );
+    final notes = TextEditingController(
+      text: customer?['notes']?.toString() ?? '',
+    );
     final formKey = GlobalKey<FormState>();
 
     final saved = await showDialog<bool>(
@@ -740,7 +767,9 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Customer'),
-        content: Text('Delete ${customer['name']}? Past invoices will be retained.'),
+        content: Text(
+          'Delete ${customer['name']}? Past invoices will be retained.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -785,14 +814,16 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                     child: ListView.builder(
                       itemCount: sales.length,
                       itemBuilder: (context, index) {
-                        final sale = Map<String, dynamic>.from(sales[index] as Map);
+                        final sale = Map<String, dynamic>.from(
+                          sales[index] as Map,
+                        );
                         return ListTile(
                           leading: const Icon(Icons.receipt_long),
                           title: Text(sale['invoiceNumber']?.toString() ?? '-'),
                           subtitle: Text(
-                            DateTime.tryParse(sale['createdAt']?.toString() ?? '')
-                                    ?.toLocal()
-                                    .toString() ??
+                            DateTime.tryParse(
+                                  sale['createdAt']?.toString() ?? '',
+                                )?.toLocal().toString() ??
                                 '-',
                           ),
                           trailing: Text(
@@ -834,11 +865,18 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Customer Management',
-                        style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Customer Management',
+                      style: TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     SizedBox(height: 5),
-                    Text('Manage customers and view their purchase history',
-                        style: TextStyle(color: Colors.grey)),
+                    Text(
+                      'Manage customers and view their purchase history',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ],
                 ),
               ),
@@ -871,59 +909,77 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             child: loading
                 ? const Center(child: CircularProgressIndicator())
                 : errorMessage != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(errorMessage!),
-                            TextButton(
-                              onPressed: () => loadCustomers(search: searchController.text),
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(errorMessage!),
+                        TextButton(
+                          onPressed: () =>
+                              loadCustomers(search: searchController.text),
+                          child: const Text('Retry'),
                         ),
-                      )
-                    : customers.isEmpty
-                        ? const Center(child: Text('No customers found. Add your first customer.'))
-                        : ListView.separated(
-                            itemCount: customers.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 6),
-                            itemBuilder: (context, index) {
-                              final customer = Map<String, dynamic>.from(customers[index] as Map);
-                              return Card(
-                                child: ListTile(
-                                  leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-                                  title: Text(customer['name']?.toString() ?? '',
-                                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  subtitle: Text([
-                                    customer['phone']?.toString() ?? '',
-                                    customer['email']?.toString() ?? '',
-                                  ].where((v) => v.isNotEmpty).join(' • ')),
-                                  onTap: () => showCustomerHistory(customer),
-                                  trailing: Wrap(
-                                    spacing: 0,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'Purchase history',
-                                        onPressed: () => showCustomerHistory(customer),
-                                        icon: const Icon(Icons.history),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Edit',
-                                        onPressed: () => showCustomerDialog(customer: customer),
-                                        icon: const Icon(Icons.edit_outlined, color: primaryBlue),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Delete',
-                                        onPressed: () => deleteCustomer(customer),
-                                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
+                      ],
+                    ),
+                  )
+                : customers.isEmpty
+                ? const Center(
+                    child: Text('No customers found. Add your first customer.'),
+                  )
+                : ListView.separated(
+                    itemCount: customers.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (context, index) {
+                      final customer = Map<String, dynamic>.from(
+                        customers[index] as Map,
+                      );
+                      return Card(
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.person_outline),
                           ),
+                          title: Text(
+                            customer['name']?.toString() ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            [
+                              customer['phone']?.toString() ?? '',
+                              customer['email']?.toString() ?? '',
+                            ].where((v) => v.isNotEmpty).join(' • '),
+                          ),
+                          onTap: () => showCustomerHistory(customer),
+                          trailing: Wrap(
+                            spacing: 0,
+                            children: [
+                              IconButton(
+                                tooltip: 'Purchase history',
+                                onPressed: () => showCustomerHistory(customer),
+                                icon: const Icon(Icons.history),
+                              ),
+                              IconButton(
+                                tooltip: 'Edit',
+                                onPressed: () =>
+                                    showCustomerDialog(customer: customer),
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: primaryBlue,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Delete',
+                                onPressed: () => deleteCustomer(customer),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -991,7 +1047,9 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
   Future<void> saveSettings() async {
     if (shopName.text.trim().isEmpty || email.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Shop name and business email are required')),
+        const SnackBar(
+          content: Text('Shop name and business email are required'),
+        ),
       );
       return;
     }
@@ -1020,8 +1078,12 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     }
   }
 
-  Widget field(TextEditingController controller, String label,
-      {int maxLines = 1, TextInputType? keyboardType}) {
+  Widget field(
+    TextEditingController controller,
+    String label, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
@@ -1051,15 +1113,27 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Company Settings',
-                      style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Company Settings',
+                    style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 6),
-                  const Text('These details belong to the currently signed-in shop.',
-                      style: TextStyle(color: Colors.grey)),
+                  const Text(
+                    'These details belong to the currently signed-in shop.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 22),
                   field(shopName, 'Shop / Company Name'),
-                  field(phone, 'Contact Number', keyboardType: TextInputType.phone),
-                  field(email, 'Business Email', keyboardType: TextInputType.emailAddress),
+                  field(
+                    phone,
+                    'Contact Number',
+                    keyboardType: TextInputType.phone,
+                  ),
+                  field(
+                    email,
+                    'Business Email',
+                    keyboardType: TextInputType.emailAddress,
+                  ),
                   field(address, 'Business Address', maxLines: 3),
                   field(website, 'Website'),
                   field(logoUrl, 'Company Logo URL'),
@@ -1072,7 +1146,8 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
                         child: Image.network(
                           logoUrl.text.trim(),
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Text('Logo preview unavailable'),
+                          errorBuilder: (_, __, ___) =>
+                              const Text('Logo preview unavailable'),
                         ),
                       ),
                     ),
@@ -1082,8 +1157,11 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
                     child: ElevatedButton.icon(
                       onPressed: saving ? null : saveSettings,
                       icon: saving
-                          ? const SizedBox(width: 16, height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Icon(Icons.save_outlined),
                       label: Text(saving ? 'Saving...' : 'Save Settings'),
                     ),
@@ -1097,7 +1175,6 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     );
   }
 }
-
 
 class InvoiceHistoryPage extends StatefulWidget {
   final String shopName;
@@ -1256,12 +1333,18 @@ class _InvoiceHistoryPageState extends State<InvoiceHistoryPage> {
                 const SizedBox(height: 8),
                 Text('Date: ${formatDate(sale['createdAt'])}'),
                 if (sale['customerSnapshot'] is Map &&
-                    (sale['customerSnapshot']['name'] ?? '').toString().isNotEmpty) ...[
+                    (sale['customerSnapshot']['name'] ?? '')
+                        .toString()
+                        .isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text('Customer: ${sale['customerSnapshot']['name']}'),
-                  if ((sale['customerSnapshot']['phone'] ?? '').toString().isNotEmpty)
+                  if ((sale['customerSnapshot']['phone'] ?? '')
+                      .toString()
+                      .isNotEmpty)
                     Text('Phone: ${sale['customerSnapshot']['phone']}'),
-                  if ((sale['customerSnapshot']['address'] ?? '').toString().isNotEmpty)
+                  if ((sale['customerSnapshot']['address'] ?? '')
+                      .toString()
+                      .isNotEmpty)
                     Text('Address: ${sale['customerSnapshot']['address']}'),
                 ],
                 Text('Payment: ${sale['paymentMethod'] ?? '-'}'),
@@ -1615,7 +1698,6 @@ class _ShopFlowAppState extends State<ShopFlowApp> {
     });
   }
 
-
   Future<void> handleRegistration(Map<String, dynamic> details) async {
     final result = await AuthService.instance.registerShop(
       shopName: details['shopName'] as String,
@@ -1678,10 +1760,7 @@ class _ShopFlowAppState extends State<ShopFlowApp> {
               shopSlug: shopSlug ?? '',
               onLogout: handleLogout,
             )
-          : LoginPage(
-              onLogin: handleLogin,
-              onRegister: handleRegistration,
-            ),
+          : LoginPage(onLogin: handleLogin, onRegister: handleRegistration),
     );
   }
 }
@@ -1721,11 +1800,7 @@ class LoginPage extends StatefulWidget {
   onLogin;
   final Future<void> Function(Map<String, dynamic> details) onRegister;
 
-  const LoginPage({
-    super.key,
-    required this.onLogin,
-    required this.onRegister,
-  });
+  const LoginPage({super.key, required this.onLogin, required this.onRegister});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -1925,9 +2000,8 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => RegistrationPage(
-                            onRegister: widget.onRegister,
-                          ),
+                          builder: (_) =>
+                              RegistrationPage(onRegister: widget.onRegister),
                         ),
                       );
                     },
@@ -1940,6 +2014,21 @@ class _LoginPageState extends State<LoginPage> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
+                  const SizedBox(height: 8),
+
+                  TextButton.icon(
+                    onPressed: loading
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SuperAdminLoginPage(),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.admin_panel_settings_outlined),
+                    label: const Text('Super Admin Login'),
+                  ),
                 ],
               ),
             ),
@@ -1949,7 +2038,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
 
 // =====================================================
 // PUBLIC SHOP REGISTRATION
@@ -1997,7 +2085,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
 
-    if (shopName.isEmpty || ownerName.isEmpty || email.isEmpty || password.isEmpty) {
+    if (shopName.isEmpty ||
+        ownerName.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty) {
       setState(() => errorMessage = 'Please complete all required fields.');
       return;
     }
@@ -2008,7 +2099,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
 
     if (password.length < 8) {
-      setState(() => errorMessage = 'Password must contain at least 8 characters.');
+      setState(
+        () => errorMessage = 'Password must contain at least 8 characters.',
+      );
       return;
     }
 
@@ -2086,9 +2179,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 : null,
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],
@@ -2189,10 +2280,22 @@ class _RegistrationPageState extends State<RegistrationPage> {
                       fillColor: const Color(0xFFF8FAFC),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'general', child: Text('General Retail')),
-                      DropdownMenuItem(value: 'grocery', child: Text('Grocery')),
-                      DropdownMenuItem(value: 'electronics', child: Text('Electronics')),
-                      DropdownMenuItem(value: 'fashion', child: Text('Fashion')),
+                      DropdownMenuItem(
+                        value: 'general',
+                        child: Text('General Retail'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'grocery',
+                        child: Text('Grocery'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'electronics',
+                        child: Text('Electronics'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'fashion',
+                        child: Text('Fashion'),
+                      ),
                       DropdownMenuItem(value: 'other', child: Text('Other')),
                     ],
                     onChanged: loading
@@ -2358,17 +2461,15 @@ class _DashboardPageState extends State<DashboardPage> {
       if (!mounted) return;
       setState(() {
         dashboardData = Map<String, dynamic>.from(result);
-        dashboardRecentSales =
-            List<dynamic>.from(result['recentSales'] ?? []);
-        dashboardWeeklySales =
-            List<dynamic>.from(result['weeklySales'] ?? []);
+        dashboardRecentSales = List<dynamic>.from(result['recentSales'] ?? []);
+        dashboardWeeklySales = List<dynamic>.from(result['weeklySales'] ?? []);
       });
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() {
         dashboardError = e.response?.data is Map
             ? e.response?.data['message']?.toString() ??
-                'Unable to load dashboard data.'
+                  'Unable to load dashboard data.'
             : 'Cannot connect to ShopFlow server.';
       });
     } catch (_) {
@@ -2709,7 +2810,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     ? InvoiceHistoryPage(shopName: widget.shopName)
                     : selectedIndex == 9 && widget.role == 'owner'
                     ? const StaffManagementPage()
-                    : (selectedIndex == 8 || selectedIndex == 7) && (widget.role == 'owner' || widget.role == 'manager')
+                    : (selectedIndex == 8 || selectedIndex == 7) &&
+                          (widget.role == 'owner' || widget.role == 'manager')
                     ? const ReportsPage()
                     : buildPlaceholder(menuItems[selectedIndex]['name']),
               ),
@@ -2745,62 +2847,63 @@ class _DashboardPageState extends State<DashboardPage> {
           Expanded(
             child: Builder(
               builder: (context) {
-                final visibleIndexes = List<int>.generate(menuItems.length, (i) => i).where((i) {
-                  if (widget.role == 'owner') return true;
-                  if (widget.role == 'manager') return ![9, 10].contains(i);
-                  return [2, 4, 11].contains(i);
-                }).toList();
+                final visibleIndexes =
+                    List<int>.generate(menuItems.length, (i) => i).where((i) {
+                      if (widget.role == 'owner') return true;
+                      if (widget.role == 'manager') return ![9, 10].contains(i);
+                      return [2, 4, 11].contains(i);
+                    }).toList();
                 return ListView.builder(
-              itemCount: visibleIndexes.length,
-              itemBuilder: (context, displayIndex) {
-                final index = visibleIndexes[displayIndex];
-                final selected = selectedIndex == index;
+                  itemCount: visibleIndexes.length,
+                  itemBuilder: (context, displayIndex) {
+                    final index = visibleIndexes[displayIndex];
+                    final selected = selectedIndex == index;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 3,
-                  ),
-                  child: ListTile(
-                    selected: selected,
-                    selectedTileColor: primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    leading: Icon(
-                      menuItems[index]['icon'],
-                      color: selected ? Colors.white : Colors.white70,
-                      size: 21,
-                    ),
-                    title: Text(
-                      menuItems[index]['name'],
-                      style: TextStyle(
-                        color: selected ? Colors.white : Colors.white70,
-                        fontWeight: selected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 13,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 3,
                       ),
-                    ),
-                    onTap: () {
-                      setState(() => selectedIndex = index);
+                      child: ListTile(
+                        selected: selected,
+                        selectedTileColor: primaryBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        leading: Icon(
+                          menuItems[index]['icon'],
+                          color: selected ? Colors.white : Colors.white70,
+                          size: 21,
+                        ),
+                        title: Text(
+                          menuItems[index]['name'],
+                          style: TextStyle(
+                            color: selected ? Colors.white : Colors.white70,
+                            fontWeight: selected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            fontSize: 13,
+                          ),
+                        ),
+                        onTap: () {
+                          setState(() => selectedIndex = index);
 
-                      if (index == 0) {
-                        loadDashboard();
-                      }
+                          if (index == 0) {
+                            loadDashboard();
+                          }
 
-                      if (index == 1) {
-                        loadProducts();
-                      }
+                          if (index == 1) {
+                            loadProducts();
+                          }
 
-                      if (Scaffold.of(context).isDrawerOpen) {
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
+                          if (Scaffold.of(context).isDrawerOpen) {
+                            Navigator.pop(context);
+                          }
+                        },
+                      ),
+                    );
+                  },
                 );
-              },
-            );
               },
             ),
           ),
@@ -2940,8 +3043,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 final columns = constraints.maxWidth > 1000
                     ? 4
                     : constraints.maxWidth > 550
-                        ? 2
-                        : 1;
+                    ? 2
+                    : 1;
                 final width =
                     (constraints.maxWidth - (columns - 1) * 16) / columns;
 
@@ -3021,11 +3124,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 }
 
                 return Column(
-                  children: [
-                    chart,
-                    const SizedBox(height: 18),
-                    lowStock,
-                  ],
+                  children: [chart, const SizedBox(height: 18), lowStock],
                 );
               },
             ),
@@ -3536,10 +3635,14 @@ class _PosPageState extends State<PosPage> {
                   ),
                 ),
                 if (sale['customerSnapshot'] is Map &&
-                    (sale['customerSnapshot']['name'] ?? '').toString().isNotEmpty) ...[
+                    (sale['customerSnapshot']['name'] ?? '')
+                        .toString()
+                        .isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text('Customer: ${sale['customerSnapshot']['name']}'),
-                  if ((sale['customerSnapshot']['phone'] ?? '').toString().isNotEmpty)
+                  if ((sale['customerSnapshot']['phone'] ?? '')
+                      .toString()
+                      .isNotEmpty)
                     Text('Phone: ${sale['customerSnapshot']['phone']}'),
                 ],
                 const Divider(height: 24),
@@ -4074,58 +4177,304 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
   List<dynamic> staff = [];
 
   @override
-  void initState() { super.initState(); load(); }
+  void initState() {
+    super.initState();
+    load();
+  }
 
   Future<void> load() async {
-    setState(() { loading = true; error = null; });
-    try { staff = await AuthService.instance.getStaff(); }
-    catch (e) { error = 'Unable to load staff. Check backend connection and owner permission.'; }
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      staff = await AuthService.instance.getStaff();
+    } catch (e) {
+      error = 'Unable to load staff. Check backend connection and owner permission.';
+    }
     if (mounted) setState(() => loading = false);
   }
 
   Future<void> openStaffDialog({Map<String, dynamic>? member}) async {
     final name = TextEditingController(text: member?['name']?.toString() ?? '');
-    final email = TextEditingController(text: member?['email']?.toString() ?? '');
+    final email = TextEditingController(
+      text: member?['email']?.toString() ?? '',
+    );
     final password = TextEditingController();
     String role = member?['role']?.toString() ?? 'cashier';
     final formKey = GlobalKey<FormState>();
-    final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: Text(member == null ? 'Add Staff Member' : 'Edit Staff Member'),
-      content: SizedBox(width: 420, child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Full name'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null),
-        TextFormField(controller: email, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress, validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null),
-        if (member == null) TextFormField(controller: password, decoration: const InputDecoration(labelText: 'Temporary password (minimum 8 characters)'), obscureText: true, validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null),
-        if (member != null) TextFormField(controller: password, decoration: const InputDecoration(labelText: 'New password (leave blank to keep current)'), obscureText: true),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(initialValue: role, decoration: const InputDecoration(labelText: 'Role'), items: const [DropdownMenuItem(value: 'manager', child: Text('Manager')), DropdownMenuItem(value: 'cashier', child: Text('Cashier'))], onChanged: (v) { if (v != null) setDialog(() => role = v); }),
-      ]))),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save Staff'))],
-    )));
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text(
+            member == null ? 'Add Staff Member' : 'Edit Staff Member',
+          ),
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Full name'),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Name is required'
+                        : null,
+                  ),
+                  TextFormField(
+                    controller: email,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) => (v == null || !v.contains('@'))
+                        ? 'Enter a valid email'
+                        : null,
+                  ),
+                  if (member == null)
+                    TextFormField(
+                      controller: password,
+                      decoration: const InputDecoration(
+                        labelText: 'Temporary password (minimum 8 characters)',
+                      ),
+                      obscureText: true,
+                      validator: (v) => (v == null || v.length < 8)
+                          ? 'At least 8 characters'
+                          : null,
+                    ),
+                  if (member != null)
+                    TextFormField(
+                      controller: password,
+                      decoration: const InputDecoration(
+                        labelText: 'New password (leave blank to keep current)',
+                      ),
+                      obscureText: true,
+                    ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: role,
+                    decoration: const InputDecoration(labelText: 'Role'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'manager',
+                        child: Text('Manager'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'cashier',
+                        child: Text('Cashier'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setDialog(() => role = v);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
+              },
+              child: const Text('Save Staff'),
+            ),
+          ],
+        ),
+      ),
+    );
     if (saved == true) {
       try {
-        final data = <String, dynamic>{'name': name.text.trim(), 'email': email.text.trim(), 'role': role};
+        final data = <String, dynamic>{
+          'name': name.text.trim(),
+          'email': email.text.trim(),
+          'role': role,
+        };
         if (password.text.isNotEmpty) data['password'] = password.text;
-        await AuthService.instance.saveStaff(data, id: member?['id']?.toString());
+        await AuthService.instance.saveStaff(
+          data,
+          id: member?['id']?.toString(),
+        );
         await load();
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Staff account saved')));
-      } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to save staff: $e'))); }
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Staff account saved')));
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Unable to save staff: $e')));
+      }
     }
-    name.dispose(); email.dispose(); password.dispose();
+    name.dispose();
+    email.dispose();
+    password.dispose();
   }
 
   Future<void> disable(Map<String, dynamic> member) async {
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Disable Staff Account'), content: Text('Disable ${member['name']}? They will no longer be able to log in.'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Disable'))]));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Disable Staff Account'),
+        content: Text(
+          'Disable ${member['name']}? They will no longer be able to log in.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Disable'),
+          ),
+        ],
+      ),
+    );
     if (ok != true) return;
-    try { await AuthService.instance.disableStaff(member['id'].toString()); await load(); }
-    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to disable staff: $e'))); }
+    try {
+      await AuthService.instance.disableStaff(member['id'].toString());
+      await load();
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Unable to disable staff: $e')));
+    }
   }
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(padding: const EdgeInsets.all(24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Row(children: [const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Staff Management', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: darkNavy)), SizedBox(height: 5), Text('Create Manager and Cashier accounts. Only the Owner can manage staff.', style: TextStyle(color: Colors.grey))])), ElevatedButton.icon(onPressed: () => openStaffDialog(), icon: const Icon(Icons.person_add_alt_1), label: const Text('Add Staff'))]),
-    const SizedBox(height: 20),
-    if (loading) const Center(child: CircularProgressIndicator()) else if (error != null) Card(child: ListTile(title: Text(error!), trailing: IconButton(onPressed: load, icon: const Icon(Icons.refresh)))) else if (staff.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(24), child: Center(child: Text('No staff accounts yet. Add your first Manager or Cashier.')))) else ...staff.map((raw) { final m = Map<String,dynamic>.from(raw); final active = m['status'] == 'active'; return Card(margin: const EdgeInsets.only(bottom: 10), child: ListTile(leading: CircleAvatar(child: Icon(m['role'] == 'manager' ? Icons.manage_accounts : Icons.point_of_sale)), title: Text(m['name']?.toString() ?? ''), subtitle: Text('${m['email']} • ${(m['role'] ?? '').toString().toUpperCase()} • ${active ? 'ACTIVE' : 'DISABLED'}'), trailing: Wrap(spacing: 0, children: [IconButton(tooltip: 'Edit', onPressed: () => openStaffDialog(member: m), icon: const Icon(Icons.edit_outlined)), if (active) IconButton(tooltip: 'Disable', onPressed: () => disable(m), icon: const Icon(Icons.person_off_outlined, color: Colors.red)) else IconButton(tooltip: 'Activate', onPressed: () async { try { await AuthService.instance.setStaffStatus(m['id'].toString(), 'active'); await load(); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to activate staff: $e'))); } }, icon: const Icon(Icons.check_circle_outline, color: Colors.green))]))); }),
-  ]));
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Staff Management',
+                    style: TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                      color: darkNavy,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'Create Manager and Cashier accounts. Only the Owner can manage staff.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => openStaffDialog(),
+              icon: const Icon(Icons.person_add_alt_1),
+              label: const Text('Add Staff'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        if (loading)
+          const Center(child: CircularProgressIndicator())
+        else if (error != null)
+          Card(
+            child: ListTile(
+              title: Text(error!),
+              trailing: IconButton(
+                onPressed: load,
+                icon: const Icon(Icons.refresh),
+              ),
+            ),
+          )
+        else if (staff.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text(
+                  'No staff accounts yet. Add your first Manager or Cashier.',
+                ),
+              ),
+            ),
+          )
+        else
+          ...staff.map((raw) {
+            final m = Map<String, dynamic>.from(raw);
+            final active = m['status'] == 'active';
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: ListTile(
+                leading: CircleAvatar(
+                  child: Icon(
+                    m['role'] == 'manager'
+                        ? Icons.manage_accounts
+                        : Icons.point_of_sale,
+                  ),
+                ),
+                title: Text(m['name']?.toString() ?? ''),
+                subtitle: Text(
+                  '${m['email']} • ${(m['role'] ?? '').toString().toUpperCase()} • ${active ? 'ACTIVE' : 'DISABLED'}',
+                ),
+                trailing: Wrap(
+                  spacing: 0,
+                  children: [
+                    IconButton(
+                      tooltip: 'Edit',
+                      onPressed: () => openStaffDialog(member: m),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    if (active)
+                      IconButton(
+                        tooltip: 'Disable',
+                        onPressed: () => disable(m),
+                        icon: const Icon(
+                          Icons.person_off_outlined,
+                          color: Colors.red,
+                        ),
+                      )
+                    else
+                      IconButton(
+                        tooltip: 'Activate',
+                        onPressed: () async {
+                          try {
+                            await AuthService.instance.setStaffStatus(
+                              m['id'].toString(),
+                              'active',
+                            );
+                            await load();
+                          } catch (e) {
+                            if (mounted)
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Unable to activate staff: $e'),
+                                ),
+                              );
+                          }
+                        },
+                        icon: const Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.green,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    ),
+  );
 }
 
 // =====================================================
@@ -4145,98 +4494,354 @@ class _ReportsPageState extends State<ReportsPage> {
   Map<String, dynamic> report = {};
 
   @override
-  void initState() { super.initState(); load(); }
+  void initState() {
+    super.initState();
+    load();
+  }
+
   Future<void> load() async {
-    setState(() { loading = true; error = null; });
-    try { report = await AuthService.instance.getReport(period: period); }
-    catch (e) { error = 'Unable to load report. Only Owner and Manager can view reports. $e'; }
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      report = await AuthService.instance.getReport(period: period);
+    } catch (e) {
+      error =
+          'Unable to load report. Only Owner and Manager can view reports. $e';
+    }
     if (mounted) setState(() => loading = false);
   }
 
-  String money(dynamic v) { final n = v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0; return 'LKR ${n.toStringAsFixed(2)}'; }
-
-  Future<void> addExpense() async {
-    final title = TextEditingController(); final amount = TextEditingController(); final category = TextEditingController(text: 'General'); final note = TextEditingController();
-    final key = GlobalKey<FormState>();
-    final saved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Record Expense'), content: SizedBox(width: 420, child: Form(key: key, child: Column(mainAxisSize: MainAxisSize.min, children: [TextFormField(controller: title, decoration: const InputDecoration(labelText: 'Expense title'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter a title' : null), TextFormField(controller: category, decoration: const InputDecoration(labelText: 'Category')), TextFormField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Amount (LKR)'), validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter a valid amount' : null), TextFormField(controller: note, decoration: const InputDecoration(labelText: 'Note (optional)'))]))), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save Expense'))]));
-    if (saved == true) { try { await AuthService.instance.createExpense({'title': title.text.trim(), 'category': category.text.trim(), 'amount': double.parse(amount.text), 'note': note.text.trim(), 'expenseDate': DateTime.now().toUtc().toIso8601String()}); await load(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense saved'))); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to save expense: $e'))); } }
-    title.dispose(); amount.dispose(); category.dispose(); note.dispose();
+  String money(dynamic v) {
+    final n = v is num
+        ? v.toDouble()
+        : double.tryParse(v?.toString() ?? '') ?? 0;
+    return 'LKR ${n.toStringAsFixed(2)}';
   }
 
-  Widget metric(String label, dynamic value, IconData icon, {bool highlight = false}) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, color: highlight ? Colors.green : primaryBlue), const SizedBox(height: 12), Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)), const SizedBox(height: 5), Text(money(value), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: highlight ? Colors.green.shade800 : darkNavy))])));
+  Future<void> addExpense() async {
+    final title = TextEditingController();
+    final amount = TextEditingController();
+    final category = TextEditingController(text: 'General');
+    final note = TextEditingController();
+    final key = GlobalKey<FormState>();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Record Expense'),
+        content: SizedBox(
+          width: 420,
+          child: Form(
+            key: key,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: title,
+                  decoration: const InputDecoration(labelText: 'Expense title'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Enter a title' : null,
+                ),
+                TextFormField(
+                  controller: category,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                ),
+                TextFormField(
+                  controller: amount,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(labelText: 'Amount (LKR)'),
+                  validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0
+                      ? 'Enter a valid amount'
+                      : null,
+                ),
+                TextFormField(
+                  controller: note,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (key.currentState!.validate()) Navigator.pop(ctx, true);
+            },
+            child: const Text('Save Expense'),
+          ),
+        ],
+      ),
+    );
+    if (saved == true) {
+      try {
+        await AuthService.instance.createExpense({
+          'title': title.text.trim(),
+          'category': category.text.trim(),
+          'amount': double.parse(amount.text),
+          'note': note.text.trim(),
+          'expenseDate': DateTime.now().toUtc().toIso8601String(),
+        });
+        await load();
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Expense saved')));
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Unable to save expense: $e')));
+      }
+    }
+    title.dispose();
+    amount.dispose();
+    category.dispose();
+    note.dispose();
+  }
+
+  Widget metric(
+    String label,
+    dynamic value,
+    IconData icon, {
+    bool highlight = false,
+  }) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: highlight ? Colors.green : primaryBlue),
+          const SizedBox(height: 12),
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          const SizedBox(height: 5),
+          Text(
+            money(value),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+              color: highlight ? Colors.green.shade800 : darkNavy,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(onRefresh: load, child: ListView(padding: const EdgeInsets.all(24), children: [
-    Row(children: [const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Advanced Reports', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: darkNavy)), SizedBox(height: 5), Text('Sales, cost of goods, gross profit and recorded expenses.', style: TextStyle(color: Colors.grey))])), ElevatedButton.icon(onPressed: addExpense, icon: const Icon(Icons.add), label: const Text('Add Expense'))]),
-    const SizedBox(height: 16),
-    Row(children: [const Text('Period: '), const SizedBox(width: 10), DropdownButton<String>(value: period, items: const [DropdownMenuItem(value: 'daily', child: Text('Daily')), DropdownMenuItem(value: 'weekly', child: Text('Weekly')), DropdownMenuItem(value: 'monthly', child: Text('Monthly'))], onChanged: (v) { if (v != null) { setState(() => period = v); load(); } }), const Spacer(), IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
-    if (loading) const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())) else if (error != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Text(error!))) else ...[
-      Wrap(spacing: 10, runSpacing: 10, children: [SizedBox(width: 230, child: metric('Sales Revenue', report['revenue'], Icons.point_of_sale)), SizedBox(width: 230, child: metric('Cost of Goods', report['costOfGoods'], Icons.inventory_2_outlined)), SizedBox(width: 230, child: metric('Gross Profit', report['grossProfit'], Icons.trending_up, highlight: true)), SizedBox(width: 230, child: metric('Expenses', report['expenses'], Icons.money_off)), SizedBox(width: 230, child: metric('Net Profit', report['netProfit'], Icons.account_balance, highlight: true))]),
-      const SizedBox(height: 12),
-      Card(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(spacing: 24, runSpacing: 10, children: [Text('Invoices: ${report['invoiceCount'] ?? 0}'), Text('Units sold: ${report['unitsSold'] ?? 0}'), Text('Expense records: ${report['expenseCount'] ?? 0}'), Text('Discounts: ${money(report['discounts'])}')]))),
-      const SizedBox(height: 18),
-      const Text('Recorded Expenses', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy)),
-      const SizedBox(height: 8),
-      if ((report['expenseItems'] as List? ?? []).isEmpty)
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(18),
-            child: Text('No expenses recorded for this period.'),
-          ),
-        )
-      else
-        ...(report['expenseItems'] as List).map<Widget>((raw) {
-          final expense = Map<String, dynamic>.from(raw);
-          final expenseDate = DateTime.tryParse(
-            expense['expenseDate']?.toString() ?? '',
-          )?.toLocal();
-          return Card(
-            child: ListTile(
-              leading: const Icon(Icons.receipt_long, color: primaryBlue),
-              title: Text(expense['title']?.toString() ?? ''),
-              subtitle: Text(
-                '${expense['category'] ?? 'General'} • ${expenseDate?.toString().split(' ').first ?? ''}',
-              ),
-              trailing: Text(
-                money(expense['amount']),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+  Widget build(BuildContext context) => RefreshIndicator(
+    onRefresh: load,
+    child: ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Advanced Reports',
+                    style: TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                      color: darkNavy,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'Sales, cost of goods, gross profit and recorded expenses.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
               ),
             ),
-          );
-        }),
-      const SizedBox(height: 18),
-      const Text(
-        'Recent Sales',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
-      ),
-      const SizedBox(height: 8),
-      if ((report['recentSales'] as List? ?? []).isEmpty)
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(18),
-            child: Text('No sales in this period.'),
+            ElevatedButton.icon(
+              onPressed: addExpense,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Expense'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            const Text('Period: '),
+            const SizedBox(width: 10),
+            DropdownButton<String>(
+              value: period,
+              items: const [
+                DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+              ],
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() => period = v);
+                  load();
+                }
+              },
+            ),
+            const Spacer(),
+            IconButton(onPressed: load, icon: const Icon(Icons.refresh)),
+          ],
+        ),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (error != null)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(error!),
+            ),
+          )
+        else ...[
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              SizedBox(
+                width: 230,
+                child: metric(
+                  'Sales Revenue',
+                  report['revenue'],
+                  Icons.point_of_sale,
+                ),
+              ),
+              SizedBox(
+                width: 230,
+                child: metric(
+                  'Cost of Goods',
+                  report['costOfGoods'],
+                  Icons.inventory_2_outlined,
+                ),
+              ),
+              SizedBox(
+                width: 230,
+                child: metric(
+                  'Gross Profit',
+                  report['grossProfit'],
+                  Icons.trending_up,
+                  highlight: true,
+                ),
+              ),
+              SizedBox(
+                width: 230,
+                child: metric('Expenses', report['expenses'], Icons.money_off),
+              ),
+              SizedBox(
+                width: 230,
+                child: metric(
+                  'Net Profit',
+                  report['netProfit'],
+                  Icons.account_balance,
+                  highlight: true,
+                ),
+              ),
+            ],
           ),
-        )
-      else
-        ...(report['recentSales'] as List).map<Widget>((raw) {
-          final sale = Map<String, dynamic>.from(raw);
-          final saleDate = DateTime.tryParse(
-            sale['createdAt']?.toString() ?? '',
-          )?.toLocal();
-          return Card(
-            child: ListTile(
-              leading: const Icon(Icons.receipt, color: primaryBlue),
-              title: Text(sale['invoiceNumber']?.toString() ?? ''),
-              subtitle: Text(saleDate?.toString() ?? ''),
-              trailing: Text(
-                money(sale['totalAmount']),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 24,
+                runSpacing: 10,
+                children: [
+                  Text('Invoices: ${report['invoiceCount'] ?? 0}'),
+                  Text('Units sold: ${report['unitsSold'] ?? 0}'),
+                  Text('Expense records: ${report['expenseCount'] ?? 0}'),
+                  Text('Discounts: ${money(report['discounts'])}'),
+                ],
               ),
             ),
-          );
-        }),
-    ],
-  ]));
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Recorded Expenses',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: darkNavy,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if ((report['expenseItems'] as List? ?? []).isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Text('No expenses recorded for this period.'),
+              ),
+            )
+          else
+            ...(report['expenseItems'] as List).map<Widget>((raw) {
+              final expense = Map<String, dynamic>.from(raw);
+              final expenseDate = DateTime.tryParse(
+                expense['expenseDate']?.toString() ?? '',
+              )?.toLocal();
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.receipt_long, color: primaryBlue),
+                  title: Text(expense['title']?.toString() ?? ''),
+                  subtitle: Text(
+                    '${expense['category'] ?? 'General'} • ${expenseDate?.toString().split(' ').first ?? ''}',
+                  ),
+                  trailing: Text(
+                    money(expense['amount']),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: 18),
+          const Text(
+            'Recent Sales',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: darkNavy,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if ((report['recentSales'] as List? ?? []).isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Text('No sales in this period.'),
+              ),
+            )
+          else
+            ...(report['recentSales'] as List).map<Widget>((raw) {
+              final sale = Map<String, dynamic>.from(raw);
+              final saleDate = DateTime.tryParse(
+                sale['createdAt']?.toString() ?? '',
+              )?.toLocal();
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.receipt, color: primaryBlue),
+                  title: Text(sale['invoiceNumber']?.toString() ?? ''),
+                  subtitle: Text(saleDate?.toString() ?? ''),
+                  trailing: Text(
+                    money(sale['totalAmount']),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              );
+            }),
+        ],
+      ],
+    ),
+  );
 }
 
 // =====================================================
@@ -4385,8 +4990,9 @@ class SalesChart extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: List.generate(salesByDay.length, (index) {
-                  final entry =
-                      Map<String, dynamic>.from(salesByDay[index] as Map);
+                  final entry = Map<String, dynamic>.from(
+                    salesByDay[index] as Map,
+                  );
                   final amount = _amount(entry['revenue']);
                   final factor = (amount / maxValue).clamp(0.0, 1.0);
 
@@ -4597,17 +5203,14 @@ class RecentTransactions extends StatelessWidget {
                       : <String, dynamic>{};
                   final customerName =
                       customer['name']?.toString().trim().isNotEmpty == true
-                          ? customer['name'].toString()
-                          : 'Walk-in customer';
+                      ? customer['name'].toString()
+                      : 'Walk-in customer';
                   final status =
-                      sale['paymentStatus']?.toString().toUpperCase() ??
-                          'PAID';
+                      sale['paymentStatus']?.toString().toUpperCase() ?? 'PAID';
 
                   return DataRow(
                     cells: [
-                      DataCell(
-                        Text(sale['invoiceNumber']?.toString() ?? '-'),
-                      ),
+                      DataCell(Text(sale['invoiceNumber']?.toString() ?? '-')),
                       DataCell(Text(customerName)),
                       DataCell(Text(_date(sale['createdAt']))),
                       DataCell(Text(_money(sale['totalAmount']))),
