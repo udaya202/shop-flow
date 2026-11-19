@@ -1,103 +1,132 @@
+import crypto from "node:crypto";
+import argon2 from "argon2";
 
 import Tenant from "../models/Tenant.js";
 import User from "../models/UserModel.js";
-import argon2 from "argon2";
-import jwt from "jsonwebtoken";
+import Session from "../models/Session.js";
+import { createSessionForUser } from "./sessionController.js";
 
-// SHOP REGISTRATION
+function normalizeEmail(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function makeBaseSlug(value) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 45);
+}
+
+// PUBLIC SHOP REGISTRATION
+// Creates a new tenant and its first owner, then signs the owner in immediately.
 export async function registerShop(req, res) {
+  let tenant = null;
+  let user = null;
+
   try {
-    const {
-      shopName,
-      ownerName,
-      email,
-      phone,
-      password,
-      businessType
-    } = req.body;
+    const shopName = String(req.body?.shopName ?? "").trim();
+    const ownerName = String(req.body?.ownerName ?? "").trim();
+    const email = normalizeEmail(req.body?.email);
+    const phone = String(req.body?.phone ?? "").trim();
+    const password = String(req.body?.password ?? "");
+    const businessType = String(req.body?.businessType ?? "general").trim();
 
     if (!shopName || !ownerName || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Required fields are missing"
+        message: "Shop name, owner name, email and password are required."
       });
     }
 
-    if (password.length < 8) {
+    if (shopName.length > 120 || ownerName.length > 120) {
       return res.status(400).json({
         success: false,
-        message: "Password must contain at least 8 characters"
+        message: "Shop name and owner name must be 120 characters or fewer."
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const existingUser = await User.findOne({
-      email: normalizedEmail
-    });
-
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: "Email already registered"
-      });
-    }
-
-    const baseSlug = shopName
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-
-    if (!baseSlug) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
       return res.status(400).json({
         success: false,
-        message: "Invalid shop name"
+        message: "Please enter a valid email address."
       });
     }
 
-    const slug = `${baseSlug}-${Date.now()}`;
+    if (password.length < 8 || password.length > 128) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain between 8 and 128 characters."
+      });
+    }
+
+    if (phone.length > 40) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is too long."
+      });
+    }
+
+    let baseSlug = makeBaseSlug(shopName);
+    // Sinhala, Tamil and other non-Latin shop names still receive a valid unique Shop ID.
+    if (!baseSlug) baseSlug = "shop";
+
+    // Email addresses are unique within a shop, not globally.
+    // The same person may own or work in more than one tenant.
+    let slug = "";
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const suffix = crypto.randomBytes(3).toString("hex");
+      const candidate = `${baseSlug}-${suffix}`;
+      const exists = await Tenant.exists({ slug: candidate });
+      if (!exists) {
+        slug = candidate;
+        break;
+      }
+    }
+
+    if (!slug) {
+      return res.status(500).json({
+        success: false,
+        message: "Could not generate a unique shop ID. Please try again."
+      });
+    }
+
     const passwordHash = await argon2.hash(password);
 
-    const tenant = new Tenant({
-      shopName: shopName.trim(),
+    tenant = new Tenant({
+      shopName,
       slug,
-      email: normalizedEmail,
-      phone: phone || "",
-      businessType: businessType || "general"
-    });
-
-    const user = new User({
-      tenantId: tenant._id,
-      name: ownerName.trim(),
-      email: normalizedEmail,
-      passwordHash,
-      role: "owner"
+      email,
+      phone,
+      businessType: businessType || "general",
+      status: "active"
     });
 
     await tenant.save();
 
-    try {
-      await user.save();
-    } catch (error) {
-      await Tenant.deleteOne({ _id: tenant._id });
-      throw error;
-    }
+    user = new User({
+      tenantId: tenant._id,
+      name: ownerName,
+      email,
+      passwordHash,
+      role: "owner",
+      status: "active"
+    });
 
-    const accessToken = jwt.sign(
-      {
-        userId: user._id.toString(),
-        tenantId: tenant._id.toString(),
-        role: user.role
-      },
-      process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "15m" }
-    );
+    await user.save();
+
+    // Creates a refresh-session cookie and returns a short-lived access token.
+    // The browser is therefore logged in immediately after successful signup.
+    const accessToken = await createSessionForUser(user, tenant, res);
 
     return res.status(201).json({
       success: true,
-      message: "Shop registered successfully",
+      message: "Shop created successfully. You are now signed in.",
       data: {
+        accessToken,
         shop: {
           id: tenant._id,
           shopName: tenant.shopName,
@@ -108,105 +137,30 @@ export async function registerShop(req, res) {
           name: user.name,
           email: user.email,
           role: user.role
-        },
-        accessToken
+        }
       }
     });
-
   } catch (error) {
-    console.error("Registration error:", error);
+    // Roll back partially-created registration records.
+    if (user?._id && tenant?._id) {
+      await Session.deleteMany({ userId: user._id, tenantId: tenant._id }).catch(() => {});
+      await User.deleteOne({ _id: user._id }).catch(() => {});
+    }
+    if (tenant?._id) {
+      await Tenant.deleteOne({ _id: tenant._id }).catch(() => {});
+    }
 
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "This account could not be created because a unique value already exists. Please try again."
+      });
+    }
+
+    console.error("Shop registration error:", error);
     return res.status(500).json({
       success: false,
-      message: "Registration failed"
-    });
-  }
-}
-
-// OWNER / STAFF LOGIN
-export async function login(req, res) {
-  try {
-    const { shopSlug, email, password } = req.body;
-
-    if (!shopSlug || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Shop, email and password are required"
-      });
-    }
-
-    const tenant = await Tenant.findOne({
-      slug: shopSlug.trim().toLowerCase(),
-      status: "active"
-    });
-
-    if (!tenant) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid login details"
-      });
-    }
-
-    const user = await User.findOne({
-      tenantId: tenant._id,
-      email: email.trim().toLowerCase(),
-      status: "active"
-    }).select("+passwordHash");
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid login details"
-      });
-    }
-
-    const validPassword = await argon2.verify(
-      user.passwordHash,
-      password
-    );
-
-    if (!validPassword) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid login details"
-      });
-    }
-
-    const accessToken = jwt.sign(
-      {
-        userId: user._id.toString(),
-        tenantId: tenant._id.toString(),
-        role: user.role
-      },
-      process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "15m" }
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "Login successful",
-      data: {
-        shop: {
-          id: tenant._id,
-          shopName: tenant.shopName,
-          slug: tenant.slug
-        },
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        },
-        accessToken
-      }
-    });
-
-  } catch (error) {
-    console.error("Login error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Login failed"
+      message: "Shop registration failed. Please try again."
     });
   }
 }

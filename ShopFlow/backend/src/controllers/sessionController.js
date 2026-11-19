@@ -38,7 +38,7 @@ function createAccessToken(user, tenant) {
   );
 }
 
-async function createSession(user, tenant, res) {
+export async function createSessionForUser(user, tenant, res) {
   const refreshToken = crypto.randomBytes(48).toString("hex");
 
   const expiresAt = new Date(
@@ -106,7 +106,7 @@ export async function sessionLogin(req, res) {
       });
     }
 
-    const accessToken = await createSession(
+    const accessToken = await createSessionForUser(
       user,
       tenant,
       res
@@ -193,7 +193,7 @@ export async function refreshSession(req, res) {
     // Rotate the refresh token.
     await Session.deleteOne({ _id: session._id });
 
-    const accessToken = await createSession(
+    const accessToken = await createSessionForUser(
       user,
       tenant,
       res

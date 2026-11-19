@@ -359,6 +359,31 @@ class AuthService {
     return data;
   }
 
+
+  Future<Map<String, dynamic>> registerShop({
+    required String shopName,
+    required String ownerName,
+    required String email,
+    required String phone,
+    required String password,
+    required String businessType,
+  }) async {
+    final response = await dio.post(
+      '/auth/register',
+      data: {
+        'shopName': shopName,
+        'ownerName': ownerName,
+        'email': email,
+        'phone': phone,
+        'password': password,
+        'businessType': businessType,
+      },
+    );
+    final data = Map<String, dynamic>.from(response.data['data']);
+    accessToken = data['accessToken']?.toString();
+    return data;
+  }
+
   Future<Map<String, dynamic>?> restoreSession() async {
     try {
       final response = await dio.post('/auth/refresh');
@@ -398,6 +423,15 @@ class AuthService {
     return List<dynamic>.from(response.data['data']);
   }
 
+  // Dashboard metrics are scoped by the authenticated tenant on the server.
+  Future<Map<String, dynamic>> getDashboardSummary() async {
+    final response = await dio.get(
+      '/dashboard/summary',
+      options: authOptions,
+    );
+    return Map<String, dynamic>.from(response.data['data'] ?? {});
+  }
+
   Future<void> saveProduct(Map<String, dynamic> data, {String? id}) async {
     if (id == null) {
       await dio.post('/products', data: data, options: authOptions);
@@ -409,6 +443,7 @@ class AuthService {
   Future<void> deleteProduct(String id) async {
     await dio.delete('/products/$id', options: authOptions);
   }
+
 
   // CUSTOMER MANAGEMENT
   Future<List<dynamic>> getCustomers({String search = ''}) async {
@@ -433,10 +468,7 @@ class AuthService {
   }
 
   Future<List<dynamic>> getCustomerSales(String id) async {
-    final response = await dio.get(
-      '/customers/$id/sales',
-      options: authOptions,
-    );
+    final response = await dio.get('/customers/$id/sales', options: authOptions);
     return List<dynamic>.from(response.data['data'] ?? []);
   }
 
@@ -449,11 +481,7 @@ class AuthService {
   Future<Map<String, dynamic>> saveCompanySettings(
     Map<String, dynamic> data,
   ) async {
-    final response = await dio.put(
-      '/company',
-      data: data,
-      options: authOptions,
-    );
+    final response = await dio.put('/company', data: data, options: authOptions);
     return Map<String, dynamic>.from(response.data['data'] ?? {});
   }
 
@@ -504,21 +532,9 @@ class AuthService {
   }
 
   // REPORTS AND EXPENSES (owner / manager)
-  Future<Map<String, dynamic>> getReport({
-    String period = 'daily',
-    DateTime? date,
-  }) async {
-    final dateText = date == null
-        ? null
-        : '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    final response = await dio.get(
-      '/reports/summary',
-      queryParameters: {
-        'period': period,
-        if (dateText != null) 'date': dateText,
-      },
-      options: authOptions,
-    );
+  Future<Map<String, dynamic>> getReport({String period = 'daily', DateTime? date}) async {
+    final dateText = date == null ? null : '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final response = await dio.get('/reports/summary', queryParameters: { 'period': period, if (dateText != null) 'date': dateText }, options: authOptions);
     return Map<String, dynamic>.from(response.data['data'] ?? {});
   }
 
@@ -542,8 +558,7 @@ class AuthService {
         'amountPaid': amountPaid,
         'discountAmount': discountAmount,
         'note': note,
-        if (customerId != null && customerId.isNotEmpty)
-          'customerId': customerId,
+        if (customerId != null && customerId.isNotEmpty) 'customerId': customerId,
       },
       options: authOptions,
     );
@@ -551,6 +566,7 @@ class AuthService {
     return Map<String, dynamic>.from(response.data['data']);
   }
 }
+
 
 // =====================================================
 // CUSTOMER MANAGEMENT
@@ -597,8 +613,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       if (!mounted) return;
       setState(() {
         loading = false;
-        errorMessage =
-            e.response?.data?['message']?.toString() ??
+        errorMessage = e.response?.data?['message']?.toString() ??
             'Unable to load customers';
       });
     } catch (_) {
@@ -611,21 +626,11 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   }
 
   Future<void> showCustomerDialog({Map<String, dynamic>? customer}) async {
-    final name = TextEditingController(
-      text: customer?['name']?.toString() ?? '',
-    );
-    final phone = TextEditingController(
-      text: customer?['phone']?.toString() ?? '',
-    );
-    final email = TextEditingController(
-      text: customer?['email']?.toString() ?? '',
-    );
-    final address = TextEditingController(
-      text: customer?['address']?.toString() ?? '',
-    );
-    final notes = TextEditingController(
-      text: customer?['notes']?.toString() ?? '',
-    );
+    final name = TextEditingController(text: customer?['name']?.toString() ?? '');
+    final phone = TextEditingController(text: customer?['phone']?.toString() ?? '');
+    final email = TextEditingController(text: customer?['email']?.toString() ?? '');
+    final address = TextEditingController(text: customer?['address']?.toString() ?? '');
+    final notes = TextEditingController(text: customer?['notes']?.toString() ?? '');
     final formKey = GlobalKey<FormState>();
 
     final saved = await showDialog<bool>(
@@ -735,9 +740,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Customer'),
-        content: Text(
-          'Delete ${customer['name']}? Past invoices will be retained.',
-        ),
+        content: Text('Delete ${customer['name']}? Past invoices will be retained.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -782,16 +785,14 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                     child: ListView.builder(
                       itemCount: sales.length,
                       itemBuilder: (context, index) {
-                        final sale = Map<String, dynamic>.from(
-                          sales[index] as Map,
-                        );
+                        final sale = Map<String, dynamic>.from(sales[index] as Map);
                         return ListTile(
                           leading: const Icon(Icons.receipt_long),
                           title: Text(sale['invoiceNumber']?.toString() ?? '-'),
                           subtitle: Text(
-                            DateTime.tryParse(
-                                  sale['createdAt']?.toString() ?? '',
-                                )?.toLocal().toString() ??
+                            DateTime.tryParse(sale['createdAt']?.toString() ?? '')
+                                    ?.toLocal()
+                                    .toString() ??
                                 '-',
                           ),
                           trailing: Text(
@@ -833,18 +834,11 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Customer Management',
-                      style: TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text('Customer Management',
+                        style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
                     SizedBox(height: 5),
-                    Text(
-                      'Manage customers and view their purchase history',
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    Text('Manage customers and view their purchase history',
+                        style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -877,77 +871,59 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             child: loading
                 ? const Center(child: CircularProgressIndicator())
                 : errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(errorMessage!),
-                        TextButton(
-                          onPressed: () =>
-                              loadCustomers(search: searchController.text),
-                          child: const Text('Retry'),
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(errorMessage!),
+                            TextButton(
+                              onPressed: () => loadCustomers(search: searchController.text),
+                              child: const Text('Retry'),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : customers.isEmpty
-                ? const Center(
-                    child: Text('No customers found. Add your first customer.'),
-                  )
-                : ListView.separated(
-                    itemCount: customers.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 6),
-                    itemBuilder: (context, index) {
-                      final customer = Map<String, dynamic>.from(
-                        customers[index] as Map,
-                      );
-                      return Card(
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.person_outline),
-                          ),
-                          title: Text(
-                            customer['name']?.toString() ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(
-                            [
-                              customer['phone']?.toString() ?? '',
-                              customer['email']?.toString() ?? '',
-                            ].where((v) => v.isNotEmpty).join(' • '),
-                          ),
-                          onTap: () => showCustomerHistory(customer),
-                          trailing: Wrap(
-                            spacing: 0,
-                            children: [
-                              IconButton(
-                                tooltip: 'Purchase history',
-                                onPressed: () => showCustomerHistory(customer),
-                                icon: const Icon(Icons.history),
-                              ),
-                              IconButton(
-                                tooltip: 'Edit',
-                                onPressed: () =>
-                                    showCustomerDialog(customer: customer),
-                                icon: const Icon(
-                                  Icons.edit_outlined,
-                                  color: primaryBlue,
+                      )
+                    : customers.isEmpty
+                        ? const Center(child: Text('No customers found. Add your first customer.'))
+                        : ListView.separated(
+                            itemCount: customers.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 6),
+                            itemBuilder: (context, index) {
+                              final customer = Map<String, dynamic>.from(customers[index] as Map);
+                              return Card(
+                                child: ListTile(
+                                  leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                                  title: Text(customer['name']?.toString() ?? '',
+                                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  subtitle: Text([
+                                    customer['phone']?.toString() ?? '',
+                                    customer['email']?.toString() ?? '',
+                                  ].where((v) => v.isNotEmpty).join(' • ')),
+                                  onTap: () => showCustomerHistory(customer),
+                                  trailing: Wrap(
+                                    spacing: 0,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Purchase history',
+                                        onPressed: () => showCustomerHistory(customer),
+                                        icon: const Icon(Icons.history),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Edit',
+                                        onPressed: () => showCustomerDialog(customer: customer),
+                                        icon: const Icon(Icons.edit_outlined, color: primaryBlue),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Delete',
+                                        onPressed: () => deleteCustomer(customer),
+                                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: 'Delete',
-                                onPressed: () => deleteCustomer(customer),
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    },
-                  ),
           ),
         ],
       ),
@@ -1015,9 +991,7 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
   Future<void> saveSettings() async {
     if (shopName.text.trim().isEmpty || email.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Shop name and business email are required'),
-        ),
+        const SnackBar(content: Text('Shop name and business email are required')),
       );
       return;
     }
@@ -1046,12 +1020,8 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     }
   }
 
-  Widget field(
-    TextEditingController controller,
-    String label, {
-    int maxLines = 1,
-    TextInputType? keyboardType,
-  }) {
+  Widget field(TextEditingController controller, String label,
+      {int maxLines = 1, TextInputType? keyboardType}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
@@ -1081,27 +1051,15 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Company Settings',
-                    style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Company Settings',
+                      style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
-                  const Text(
-                    'These details belong to the currently signed-in shop.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  const Text('These details belong to the currently signed-in shop.',
+                      style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 22),
                   field(shopName, 'Shop / Company Name'),
-                  field(
-                    phone,
-                    'Contact Number',
-                    keyboardType: TextInputType.phone,
-                  ),
-                  field(
-                    email,
-                    'Business Email',
-                    keyboardType: TextInputType.emailAddress,
-                  ),
+                  field(phone, 'Contact Number', keyboardType: TextInputType.phone),
+                  field(email, 'Business Email', keyboardType: TextInputType.emailAddress),
                   field(address, 'Business Address', maxLines: 3),
                   field(website, 'Website'),
                   field(logoUrl, 'Company Logo URL'),
@@ -1114,8 +1072,7 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
                         child: Image.network(
                           logoUrl.text.trim(),
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) =>
-                              const Text('Logo preview unavailable'),
+                          errorBuilder: (_, __, ___) => const Text('Logo preview unavailable'),
                         ),
                       ),
                     ),
@@ -1125,11 +1082,8 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
                     child: ElevatedButton.icon(
                       onPressed: saving ? null : saveSettings,
                       icon: saving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const SizedBox(width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.save_outlined),
                       label: Text(saving ? 'Saving...' : 'Save Settings'),
                     ),
@@ -1143,6 +1097,7 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     );
   }
 }
+
 
 class InvoiceHistoryPage extends StatefulWidget {
   final String shopName;
@@ -1301,18 +1256,12 @@ class _InvoiceHistoryPageState extends State<InvoiceHistoryPage> {
                 const SizedBox(height: 8),
                 Text('Date: ${formatDate(sale['createdAt'])}'),
                 if (sale['customerSnapshot'] is Map &&
-                    (sale['customerSnapshot']['name'] ?? '')
-                        .toString()
-                        .isNotEmpty) ...[
+                    (sale['customerSnapshot']['name'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text('Customer: ${sale['customerSnapshot']['name']}'),
-                  if ((sale['customerSnapshot']['phone'] ?? '')
-                      .toString()
-                      .isNotEmpty)
+                  if ((sale['customerSnapshot']['phone'] ?? '').toString().isNotEmpty)
                     Text('Phone: ${sale['customerSnapshot']['phone']}'),
-                  if ((sale['customerSnapshot']['address'] ?? '')
-                      .toString()
-                      .isNotEmpty)
+                  if ((sale['customerSnapshot']['address'] ?? '').toString().isNotEmpty)
                     Text('Address: ${sale['customerSnapshot']['address']}'),
                 ],
                 Text('Payment: ${sale['paymentMethod'] ?? '-'}'),
@@ -1666,6 +1615,32 @@ class _ShopFlowAppState extends State<ShopFlowApp> {
     });
   }
 
+
+  Future<void> handleRegistration(Map<String, dynamic> details) async {
+    final result = await AuthService.instance.registerShop(
+      shopName: details['shopName'] as String,
+      ownerName: details['ownerName'] as String,
+      email: details['email'] as String,
+      phone: details['phone'] as String,
+      password: details['password'] as String,
+      businessType: details['businessType'] as String,
+    );
+
+    final user = Map<String, dynamic>.from(result['user']);
+    final shop = Map<String, dynamic>.from(result['shop']);
+
+    if (!mounted) return;
+
+    setState(() {
+      token = AuthService.instance.accessToken;
+      userName = user['name']?.toString();
+      userEmail = user['email']?.toString();
+      userRole = user['role']?.toString();
+      shopName = shop['shopName']?.toString();
+      shopSlug = shop['slug']?.toString();
+    });
+  }
+
   Future<void> handleLogout() async {
     await AuthService.instance.logout();
 
@@ -1703,7 +1678,10 @@ class _ShopFlowAppState extends State<ShopFlowApp> {
               shopSlug: shopSlug ?? '',
               onLogout: handleLogout,
             )
-          : LoginPage(onLogin: handleLogin),
+          : LoginPage(
+              onLogin: handleLogin,
+              onRegister: handleRegistration,
+            ),
     );
   }
 }
@@ -1741,8 +1719,13 @@ class LoadingPage extends StatelessWidget {
 class LoginPage extends StatefulWidget {
   final Future<void> Function(String shopId, String email, String password)
   onLogin;
+  final Future<void> Function(Map<String, dynamic> details) onRegister;
 
-  const LoginPage({super.key, required this.onLogin});
+  const LoginPage({
+    super.key,
+    required this.onLogin,
+    required this.onRegister,
+  });
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -1937,9 +1920,352 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 18),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RegistrationPage(
+                            onRegister: widget.onRegister,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add_business_outlined),
+                    label: const Text("New to ShopFlow? Create your shop"),
+                  ),
+                  const SizedBox(height: 10),
                   const Text(
                     'Secure Business Management Platform',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// =====================================================
+// PUBLIC SHOP REGISTRATION
+// =====================================================
+
+class RegistrationPage extends StatefulWidget {
+  final Future<void> Function(Map<String, dynamic> details) onRegister;
+
+  const RegistrationPage({super.key, required this.onRegister});
+
+  @override
+  State<RegistrationPage> createState() => _RegistrationPageState();
+}
+
+class _RegistrationPageState extends State<RegistrationPage> {
+  final shopNameController = TextEditingController();
+  final ownerNameController = TextEditingController();
+  final emailController = TextEditingController();
+  final phoneController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+
+  String businessType = 'general';
+  bool loading = false;
+  bool obscurePassword = true;
+  bool obscureConfirmPassword = true;
+  String? errorMessage;
+
+  @override
+  void dispose() {
+    shopNameController.dispose();
+    ownerNameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> submitRegistration() async {
+    final shopName = shopNameController.text.trim();
+    final ownerName = ownerNameController.text.trim();
+    final email = emailController.text.trim().toLowerCase();
+    final phone = phoneController.text.trim();
+    final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
+
+    if (shopName.isEmpty || ownerName.isEmpty || email.isEmpty || password.isEmpty) {
+      setState(() => errorMessage = 'Please complete all required fields.');
+      return;
+    }
+
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      setState(() => errorMessage = 'Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setState(() => errorMessage = 'Password must contain at least 8 characters.');
+      return;
+    }
+
+    if (password != confirmPassword) {
+      setState(() => errorMessage = 'Passwords do not match.');
+      return;
+    }
+
+    setState(() {
+      loading = true;
+      errorMessage = null;
+    });
+
+    try {
+      await widget.onRegister({
+        'shopName': shopName,
+        'ownerName': ownerName,
+        'email': email,
+        'phone': phone,
+        'password': password,
+        'businessType': businessType,
+      });
+      // The app root has switched to the authenticated dashboard.
+      if (mounted) Navigator.of(context).pop();
+    } on DioException catch (error) {
+      final data = error.response?.data;
+      if (mounted) {
+        setState(() {
+          errorMessage = data is Map
+              ? data['message']?.toString() ?? 'Registration failed.'
+              : 'Cannot connect to ShopFlow server.';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => errorMessage = 'Registration failed. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Widget buildField({
+    required String label,
+    required IconData icon,
+    required TextEditingController controller,
+    bool requiredField = false,
+    bool password = false,
+    bool obscure = false,
+    VoidCallback? onToggleObscure,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          requiredField ? '$label *' : label,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          obscureText: obscure,
+          decoration: InputDecoration(
+            hintText: 'Enter $label',
+            prefixIcon: Icon(icon),
+            suffixIcon: password
+                ? IconButton(
+                    onPressed: onToggleObscure,
+                    icon: Icon(
+                      obscure ? Icons.visibility_off : Icons.visibility,
+                    ),
+                  )
+                : null,
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create your ShopFlow account'),
+        backgroundColor: backgroundColor,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .05),
+                    blurRadius: 25,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(
+                    Icons.storefront_rounded,
+                    color: primaryBlue,
+                    size: 54,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Create Your Shop',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 27,
+                      fontWeight: FontWeight.bold,
+                      color: darkNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Register your business and start using ShopFlow.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 26),
+                  buildField(
+                    label: 'Shop / Business Name',
+                    icon: Icons.store_outlined,
+                    controller: shopNameController,
+                    requiredField: true,
+                  ),
+                  const SizedBox(height: 16),
+                  buildField(
+                    label: 'Owner Full Name',
+                    icon: Icons.person_outline,
+                    controller: ownerNameController,
+                    requiredField: true,
+                  ),
+                  const SizedBox(height: 16),
+                  buildField(
+                    label: 'Email Address',
+                    icon: Icons.email_outlined,
+                    controller: emailController,
+                    requiredField: true,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  buildField(
+                    label: 'Phone Number',
+                    icon: Icons.phone_outlined,
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Business Type',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: businessType,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'general', child: Text('General Retail')),
+                      DropdownMenuItem(value: 'grocery', child: Text('Grocery')),
+                      DropdownMenuItem(value: 'electronics', child: Text('Electronics')),
+                      DropdownMenuItem(value: 'fashion', child: Text('Fashion')),
+                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                    ],
+                    onChanged: loading
+                        ? null
+                        : (value) {
+                            if (value != null) {
+                              setState(() => businessType = value);
+                            }
+                          },
+                  ),
+                  const SizedBox(height: 16),
+                  buildField(
+                    label: 'Password',
+                    icon: Icons.lock_outline,
+                    controller: passwordController,
+                    requiredField: true,
+                    password: true,
+                    obscure: obscurePassword,
+                    onToggleObscure: () {
+                      setState(() => obscurePassword = !obscurePassword);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  buildField(
+                    label: 'Confirm Password',
+                    icon: Icons.lock_reset_outlined,
+                    controller: confirmPasswordController,
+                    requiredField: true,
+                    password: true,
+                    obscure: obscureConfirmPassword,
+                    onToggleObscure: () {
+                      setState(() {
+                        obscureConfirmPassword = !obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: loading ? null : submitRegistration,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: loading
+                          ? const SizedBox(
+                              height: 21,
+                              width: 21,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'CREATE MY SHOP',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Your shop and owner account will be created immediately.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
@@ -1990,6 +2316,12 @@ class _DashboardPageState extends State<DashboardPage> {
   List<dynamic> products = [];
   List<dynamic> lowStockProducts = [];
 
+  bool dashboardLoading = true;
+  String? dashboardError;
+  Map<String, dynamic> dashboardData = {};
+  List<dynamic> dashboardRecentSales = [];
+  List<dynamic> dashboardWeeklySales = [];
+
   final List<Map<String, dynamic>> menuItems = [
     {'name': 'Dashboard', 'icon': Icons.dashboard_outlined},
     {'name': 'Products', 'icon': Icons.inventory_2_outlined},
@@ -2010,6 +2342,48 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     if (widget.role == 'cashier') selectedIndex = 2;
     loadProducts();
+    loadDashboard();
+  }
+
+  Future<void> loadDashboard() async {
+    if (mounted) {
+      setState(() {
+        dashboardLoading = true;
+        dashboardError = null;
+      });
+    }
+
+    try {
+      final result = await AuthService.instance.getDashboardSummary();
+      if (!mounted) return;
+      setState(() {
+        dashboardData = Map<String, dynamic>.from(result);
+        dashboardRecentSales =
+            List<dynamic>.from(result['recentSales'] ?? []);
+        dashboardWeeklySales =
+            List<dynamic>.from(result['weeklySales'] ?? []);
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        dashboardError = e.response?.data is Map
+            ? e.response?.data['message']?.toString() ??
+                'Unable to load dashboard data.'
+            : 'Cannot connect to ShopFlow server.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => dashboardError = 'Unable to load dashboard data.');
+    } finally {
+      if (mounted) setState(() => dashboardLoading = false);
+    }
+  }
+
+  String dashboardMoney(dynamic value) {
+    final amount = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    return 'LKR ${amount.toStringAsFixed(2)}';
   }
 
   @override
@@ -2324,6 +2698,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         shopName: widget.shopName,
                         onSaleCompleted: () async {
                           await loadProducts();
+                          await loadDashboard();
                         },
                       )
                     : selectedIndex == 4
@@ -2334,8 +2709,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     ? InvoiceHistoryPage(shopName: widget.shopName)
                     : selectedIndex == 9 && widget.role == 'owner'
                     ? const StaffManagementPage()
-                    : (selectedIndex == 8 || selectedIndex == 7) &&
-                          (widget.role == 'owner' || widget.role == 'manager')
+                    : (selectedIndex == 8 || selectedIndex == 7) && (widget.role == 'owner' || widget.role == 'manager')
                     ? const ReportsPage()
                     : buildPlaceholder(menuItems[selectedIndex]['name']),
               ),
@@ -2371,59 +2745,62 @@ class _DashboardPageState extends State<DashboardPage> {
           Expanded(
             child: Builder(
               builder: (context) {
-                final visibleIndexes =
-                    List<int>.generate(menuItems.length, (i) => i).where((i) {
-                      if (widget.role == 'owner') return true;
-                      if (widget.role == 'manager') return ![9, 10].contains(i);
-                      return [2, 4, 11].contains(i);
-                    }).toList();
+                final visibleIndexes = List<int>.generate(menuItems.length, (i) => i).where((i) {
+                  if (widget.role == 'owner') return true;
+                  if (widget.role == 'manager') return ![9, 10].contains(i);
+                  return [2, 4, 11].contains(i);
+                }).toList();
                 return ListView.builder(
-                  itemCount: visibleIndexes.length,
-                  itemBuilder: (context, displayIndex) {
-                    final index = visibleIndexes[displayIndex];
-                    final selected = selectedIndex == index;
+              itemCount: visibleIndexes.length,
+              itemBuilder: (context, displayIndex) {
+                final index = visibleIndexes[displayIndex];
+                final selected = selectedIndex == index;
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 3,
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 3,
+                  ),
+                  child: ListTile(
+                    selected: selected,
+                    selectedTileColor: primaryBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    leading: Icon(
+                      menuItems[index]['icon'],
+                      color: selected ? Colors.white : Colors.white70,
+                      size: 21,
+                    ),
+                    title: Text(
+                      menuItems[index]['name'],
+                      style: TextStyle(
+                        color: selected ? Colors.white : Colors.white70,
+                        fontWeight: selected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: 13,
                       ),
-                      child: ListTile(
-                        selected: selected,
-                        selectedTileColor: primaryBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        leading: Icon(
-                          menuItems[index]['icon'],
-                          color: selected ? Colors.white : Colors.white70,
-                          size: 21,
-                        ),
-                        title: Text(
-                          menuItems[index]['name'],
-                          style: TextStyle(
-                            color: selected ? Colors.white : Colors.white70,
-                            fontWeight: selected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            fontSize: 13,
-                          ),
-                        ),
-                        onTap: () {
-                          setState(() => selectedIndex = index);
+                    ),
+                    onTap: () {
+                      setState(() => selectedIndex = index);
 
-                          if (index == 1) {
-                            loadProducts();
-                          }
+                      if (index == 0) {
+                        loadDashboard();
+                      }
 
-                          if (Scaffold.of(context).isDrawerOpen) {
-                            Navigator.pop(context);
-                          }
-                        },
-                      ),
-                    );
-                  },
+                      if (index == 1) {
+                        loadProducts();
+                      }
+
+                      if (Scaffold.of(context).isDrawerOpen) {
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
                 );
+              },
+            );
               },
             ),
           ),
@@ -2477,145 +2854,195 @@ class _DashboardPageState extends State<DashboardPage> {
   // =================================================
 
   Widget buildDashboard() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            runSpacing: 12,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Dashboard Overview',
-                    style: TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                      color: darkNavy,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Welcome back, ${widget.userName}',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-              Chip(
-                avatar: const Icon(Icons.store, size: 17),
-                label: Text(widget.shopName),
-                backgroundColor: Colors.white,
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
+    final todayRevenue = dashboardData['todayRevenue'] ?? 0;
+    final totalProducts = dashboardData['totalProducts'] ?? 0;
+    final totalCustomers = dashboardData['totalCustomers'] ?? 0;
+    final lowStockCount = dashboardData['lowStockCount'] ?? 0;
 
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth > 1000
-                  ? 4
-                  : constraints.maxWidth > 550
-                  ? 2
-                  : 1;
-
-              final width =
-                  (constraints.maxWidth - (columns - 1) * 16) / columns;
-
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  SizedBox(
-                    width: width,
-                    child: const StatCard(
-                      title: "Today's Sales",
-                      value: 'LKR 85,450',
-                      change: '+12.5%',
-                      icon: Icons.trending_up,
-                      color: Color(0xFF2563EB),
-                    ),
-                  ),
-                  SizedBox(
-                    width: width,
-                    child: StatCard(
-                      title: 'Total Products',
-                      value: products.length.toString(),
-                      change: 'Saved products',
-                      icon: Icons.inventory_2_outlined,
-                      color: const Color(0xFF8B5CF6),
-                    ),
-                  ),
-                  SizedBox(
-                    width: width,
-                    child: const StatCard(
-                      title: 'Total Customers',
-                      value: '856',
-                      change: 'Customer records',
-                      icon: Icons.people_outline,
-                      color: Color(0xFF0891B2),
-                    ),
-                  ),
-                  SizedBox(
-                    width: width,
-                    child: StatCard(
-                      title: 'Low Stock Items',
-                      value: lowStockProducts.length.toString(),
-                      change: 'Needs attention',
-                      icon: Icons.warning_amber_rounded,
-                      color: const Color(0xFFEA580C),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 26),
-
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth > 850;
-
-              if (wide) {
-                return Row(
+    return RefreshIndicator(
+      onRefresh: loadDashboard,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              runSpacing: 12,
+              children: [
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(flex: 3, child: SalesChart()),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      flex: 2,
-                      child: LowStockCard(products: lowStockProducts),
+                    const Text(
+                      'Dashboard Overview',
+                      style: TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                        color: darkNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Welcome back, ${widget.userName}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 5),
+                    SelectableText(
+                      'Shop ID: ${widget.shopSlug}',
+                      style: const TextStyle(
+                        color: primaryBlue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Chip(
+                      avatar: const Icon(Icons.store, size: 17),
+                      label: Text(widget.shopName),
+                      backgroundColor: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Refresh dashboard',
+                      onPressed: loadDashboard,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            if (dashboardError != null)
+              Card(
+                color: const Color(0xFFFFF7ED),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber, color: Colors.deepOrange),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(dashboardError!)),
+                      TextButton(
+                        onPressed: loadDashboard,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth > 1000
+                    ? 4
+                    : constraints.maxWidth > 550
+                        ? 2
+                        : 1;
+                final width =
+                    (constraints.maxWidth - (columns - 1) * 16) / columns;
+
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    SizedBox(
+                      width: width,
+                      child: StatCard(
+                        title: "Today's Sales",
+                        value: dashboardLoading
+                            ? 'Loading...'
+                            : dashboardMoney(todayRevenue),
+                        change:
+                            '${dashboardData['todayInvoiceCount'] ?? 0} invoices today',
+                        icon: Icons.trending_up,
+                        color: const Color(0xFF2563EB),
+                      ),
+                    ),
+                    SizedBox(
+                      width: width,
+                      child: StatCard(
+                        title: 'Total Products',
+                        value: dashboardLoading
+                            ? 'Loading...'
+                            : totalProducts.toString(),
+                        change: 'Active products in this shop',
+                        icon: Icons.inventory_2_outlined,
+                        color: const Color(0xFF8B5CF6),
+                      ),
+                    ),
+                    SizedBox(
+                      width: width,
+                      child: StatCard(
+                        title: 'Total Customers',
+                        value: dashboardLoading
+                            ? 'Loading...'
+                            : totalCustomers.toString(),
+                        change: 'Active customer records',
+                        icon: Icons.people_outline,
+                        color: const Color(0xFF0891B2),
+                      ),
+                    ),
+                    SizedBox(
+                      width: width,
+                      child: StatCard(
+                        title: 'Low Stock Items',
+                        value: dashboardLoading
+                            ? 'Loading...'
+                            : lowStockCount.toString(),
+                        change: 'Needs attention',
+                        icon: Icons.warning_amber_rounded,
+                        color: const Color(0xFFEA580C),
+                      ),
                     ),
                   ],
                 );
-              }
-
-              return Column(
-                children: [
-                  const SalesChart(),
-                  const SizedBox(height: 18),
-                  LowStockCard(products: lowStockProducts),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 26),
-
-          const RecentTransactions(),
-
-          const SizedBox(height: 30),
-
-          const Center(
-            child: Text(
-              'ShopFlow Business Management Platform',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              },
             ),
-          ),
-        ],
+            const SizedBox(height: 26),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth > 850;
+                final chart = SalesChart(salesByDay: dashboardWeeklySales);
+                final lowStock = LowStockCard(products: lowStockProducts);
+
+                if (wide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 3, child: chart),
+                      const SizedBox(width: 18),
+                      Expanded(flex: 2, child: lowStock),
+                    ],
+                  );
+                }
+
+                return Column(
+                  children: [
+                    chart,
+                    const SizedBox(height: 18),
+                    lowStock,
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 26),
+            RecentTransactions(
+              sales: dashboardRecentSales,
+              loading: dashboardLoading,
+            ),
+            const SizedBox(height: 30),
+            const Center(
+              child: Text(
+                'ShopFlow Business Management Platform',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3109,14 +3536,10 @@ class _PosPageState extends State<PosPage> {
                   ),
                 ),
                 if (sale['customerSnapshot'] is Map &&
-                    (sale['customerSnapshot']['name'] ?? '')
-                        .toString()
-                        .isNotEmpty) ...[
+                    (sale['customerSnapshot']['name'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text('Customer: ${sale['customerSnapshot']['name']}'),
-                  if ((sale['customerSnapshot']['phone'] ?? '')
-                      .toString()
-                      .isNotEmpty)
+                  if ((sale['customerSnapshot']['phone'] ?? '').toString().isNotEmpty)
                     Text('Phone: ${sale['customerSnapshot']['phone']}'),
                 ],
                 const Divider(height: 24),
@@ -3651,304 +4074,58 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
   List<dynamic> staff = [];
 
   @override
-  void initState() {
-    super.initState();
-    load();
-  }
+  void initState() { super.initState(); load(); }
 
   Future<void> load() async {
-    setState(() {
-      loading = true;
-      error = null;
-    });
-    try {
-      staff = await AuthService.instance.getStaff();
-    } catch (e) {
-      error = 'Unable to load staff. Check backend connection and owner permission.';
-    }
+    setState(() { loading = true; error = null; });
+    try { staff = await AuthService.instance.getStaff(); }
+    catch (e) { error = 'Unable to load staff. Check backend connection and owner permission.'; }
     if (mounted) setState(() => loading = false);
   }
 
   Future<void> openStaffDialog({Map<String, dynamic>? member}) async {
     final name = TextEditingController(text: member?['name']?.toString() ?? '');
-    final email = TextEditingController(
-      text: member?['email']?.toString() ?? '',
-    );
+    final email = TextEditingController(text: member?['email']?.toString() ?? '');
     final password = TextEditingController();
     String role = member?['role']?.toString() ?? 'cashier';
     final formKey = GlobalKey<FormState>();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialog) => AlertDialog(
-          title: Text(
-            member == null ? 'Add Staff Member' : 'Edit Staff Member',
-          ),
-          content: SizedBox(
-            width: 420,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: name,
-                    decoration: const InputDecoration(labelText: 'Full name'),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Name is required'
-                        : null,
-                  ),
-                  TextFormField(
-                    controller: email,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) => (v == null || !v.contains('@'))
-                        ? 'Enter a valid email'
-                        : null,
-                  ),
-                  if (member == null)
-                    TextFormField(
-                      controller: password,
-                      decoration: const InputDecoration(
-                        labelText: 'Temporary password (minimum 8 characters)',
-                      ),
-                      obscureText: true,
-                      validator: (v) => (v == null || v.length < 8)
-                          ? 'At least 8 characters'
-                          : null,
-                    ),
-                  if (member != null)
-                    TextFormField(
-                      controller: password,
-                      decoration: const InputDecoration(
-                        labelText: 'New password (leave blank to keep current)',
-                      ),
-                      obscureText: true,
-                    ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: role,
-                    decoration: const InputDecoration(labelText: 'Role'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'manager',
-                        child: Text('Manager'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'cashier',
-                        child: Text('Cashier'),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setDialog(() => role = v);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) Navigator.pop(ctx, true);
-              },
-              child: const Text('Save Staff'),
-            ),
-          ],
-        ),
-      ),
-    );
+    final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
+      title: Text(member == null ? 'Add Staff Member' : 'Edit Staff Member'),
+      content: SizedBox(width: 420, child: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Full name'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null),
+        TextFormField(controller: email, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress, validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null),
+        if (member == null) TextFormField(controller: password, decoration: const InputDecoration(labelText: 'Temporary password (minimum 8 characters)'), obscureText: true, validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null),
+        if (member != null) TextFormField(controller: password, decoration: const InputDecoration(labelText: 'New password (leave blank to keep current)'), obscureText: true),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(initialValue: role, decoration: const InputDecoration(labelText: 'Role'), items: const [DropdownMenuItem(value: 'manager', child: Text('Manager')), DropdownMenuItem(value: 'cashier', child: Text('Cashier'))], onChanged: (v) { if (v != null) setDialog(() => role = v); }),
+      ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save Staff'))],
+    )));
     if (saved == true) {
       try {
-        final data = <String, dynamic>{
-          'name': name.text.trim(),
-          'email': email.text.trim(),
-          'role': role,
-        };
+        final data = <String, dynamic>{'name': name.text.trim(), 'email': email.text.trim(), 'role': role};
         if (password.text.isNotEmpty) data['password'] = password.text;
-        await AuthService.instance.saveStaff(
-          data,
-          id: member?['id']?.toString(),
-        );
+        await AuthService.instance.saveStaff(data, id: member?['id']?.toString());
         await load();
-        if (mounted)
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Staff account saved')));
-      } catch (e) {
-        if (mounted)
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Unable to save staff: $e')));
-      }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Staff account saved')));
+      } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to save staff: $e'))); }
     }
-    name.dispose();
-    email.dispose();
-    password.dispose();
+    name.dispose(); email.dispose(); password.dispose();
   }
 
   Future<void> disable(Map<String, dynamic> member) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Disable Staff Account'),
-        content: Text(
-          'Disable ${member['name']}? They will no longer be able to log in.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Disable'),
-          ),
-        ],
-      ),
-    );
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Disable Staff Account'), content: Text('Disable ${member['name']}? They will no longer be able to log in.'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Disable'))]));
     if (ok != true) return;
-    try {
-      await AuthService.instance.disableStaff(member['id'].toString());
-      await load();
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Unable to disable staff: $e')));
-    }
+    try { await AuthService.instance.disableStaff(member['id'].toString()); await load(); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to disable staff: $e'))); }
   }
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Staff Management',
-                    style: TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                      color: darkNavy,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Create Manager and Cashier accounts. Only the Owner can manage staff.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => openStaffDialog(),
-              icon: const Icon(Icons.person_add_alt_1),
-              label: const Text('Add Staff'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        if (loading)
-          const Center(child: CircularProgressIndicator())
-        else if (error != null)
-          Card(
-            child: ListTile(
-              title: Text(error!),
-              trailing: IconButton(
-                onPressed: load,
-                icon: const Icon(Icons.refresh),
-              ),
-            ),
-          )
-        else if (staff.isEmpty)
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(
-                child: Text(
-                  'No staff accounts yet. Add your first Manager or Cashier.',
-                ),
-              ),
-            ),
-          )
-        else
-          ...staff.map((raw) {
-            final m = Map<String, dynamic>.from(raw);
-            final active = m['status'] == 'active';
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: CircleAvatar(
-                  child: Icon(
-                    m['role'] == 'manager'
-                        ? Icons.manage_accounts
-                        : Icons.point_of_sale,
-                  ),
-                ),
-                title: Text(m['name']?.toString() ?? ''),
-                subtitle: Text(
-                  '${m['email']} • ${(m['role'] ?? '').toString().toUpperCase()} • ${active ? 'ACTIVE' : 'DISABLED'}',
-                ),
-                trailing: Wrap(
-                  spacing: 0,
-                  children: [
-                    IconButton(
-                      tooltip: 'Edit',
-                      onPressed: () => openStaffDialog(member: m),
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    if (active)
-                      IconButton(
-                        tooltip: 'Disable',
-                        onPressed: () => disable(m),
-                        icon: const Icon(
-                          Icons.person_off_outlined,
-                          color: Colors.red,
-                        ),
-                      )
-                    else
-                      IconButton(
-                        tooltip: 'Activate',
-                        onPressed: () async {
-                          try {
-                            await AuthService.instance.setStaffStatus(
-                              m['id'].toString(),
-                              'active',
-                            );
-                            await load();
-                          } catch (e) {
-                            if (mounted)
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Unable to activate staff: $e'),
-                                ),
-                              );
-                          }
-                        },
-                        icon: const Icon(
-                          Icons.check_circle_outline,
-                          color: Colors.green,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          }),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) => SingleChildScrollView(padding: const EdgeInsets.all(24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Row(children: [const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Staff Management', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: darkNavy)), SizedBox(height: 5), Text('Create Manager and Cashier accounts. Only the Owner can manage staff.', style: TextStyle(color: Colors.grey))])), ElevatedButton.icon(onPressed: () => openStaffDialog(), icon: const Icon(Icons.person_add_alt_1), label: const Text('Add Staff'))]),
+    const SizedBox(height: 20),
+    if (loading) const Center(child: CircularProgressIndicator()) else if (error != null) Card(child: ListTile(title: Text(error!), trailing: IconButton(onPressed: load, icon: const Icon(Icons.refresh)))) else if (staff.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(24), child: Center(child: Text('No staff accounts yet. Add your first Manager or Cashier.')))) else ...staff.map((raw) { final m = Map<String,dynamic>.from(raw); final active = m['status'] == 'active'; return Card(margin: const EdgeInsets.only(bottom: 10), child: ListTile(leading: CircleAvatar(child: Icon(m['role'] == 'manager' ? Icons.manage_accounts : Icons.point_of_sale)), title: Text(m['name']?.toString() ?? ''), subtitle: Text('${m['email']} • ${(m['role'] ?? '').toString().toUpperCase()} • ${active ? 'ACTIVE' : 'DISABLED'}'), trailing: Wrap(spacing: 0, children: [IconButton(tooltip: 'Edit', onPressed: () => openStaffDialog(member: m), icon: const Icon(Icons.edit_outlined)), if (active) IconButton(tooltip: 'Disable', onPressed: () => disable(m), icon: const Icon(Icons.person_off_outlined, color: Colors.red)) else IconButton(tooltip: 'Activate', onPressed: () async { try { await AuthService.instance.setStaffStatus(m['id'].toString(), 'active'); await load(); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to activate staff: $e'))); } }, icon: const Icon(Icons.check_circle_outline, color: Colors.green))]))); }),
+  ]));
 }
 
 // =====================================================
@@ -3968,354 +4145,98 @@ class _ReportsPageState extends State<ReportsPage> {
   Map<String, dynamic> report = {};
 
   @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
+  void initState() { super.initState(); load(); }
   Future<void> load() async {
-    setState(() {
-      loading = true;
-      error = null;
-    });
-    try {
-      report = await AuthService.instance.getReport(period: period);
-    } catch (e) {
-      error =
-          'Unable to load report. Only Owner and Manager can view reports. $e';
-    }
+    setState(() { loading = true; error = null; });
+    try { report = await AuthService.instance.getReport(period: period); }
+    catch (e) { error = 'Unable to load report. Only Owner and Manager can view reports. $e'; }
     if (mounted) setState(() => loading = false);
   }
 
-  String money(dynamic v) {
-    final n = v is num
-        ? v.toDouble()
-        : double.tryParse(v?.toString() ?? '') ?? 0;
-    return 'LKR ${n.toStringAsFixed(2)}';
-  }
+  String money(dynamic v) { final n = v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0; return 'LKR ${n.toStringAsFixed(2)}'; }
 
   Future<void> addExpense() async {
-    final title = TextEditingController();
-    final amount = TextEditingController();
-    final category = TextEditingController(text: 'General');
-    final note = TextEditingController();
+    final title = TextEditingController(); final amount = TextEditingController(); final category = TextEditingController(text: 'General'); final note = TextEditingController();
     final key = GlobalKey<FormState>();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Record Expense'),
-        content: SizedBox(
-          width: 420,
-          child: Form(
-            key: key,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: title,
-                  decoration: const InputDecoration(labelText: 'Expense title'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Enter a title' : null,
-                ),
-                TextFormField(
-                  controller: category,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                ),
-                TextFormField(
-                  controller: amount,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(labelText: 'Amount (LKR)'),
-                  validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0
-                      ? 'Enter a valid amount'
-                      : null,
-                ),
-                TextFormField(
-                  controller: note,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (key.currentState!.validate()) Navigator.pop(ctx, true);
-            },
-            child: const Text('Save Expense'),
-          ),
-        ],
-      ),
-    );
-    if (saved == true) {
-      try {
-        await AuthService.instance.createExpense({
-          'title': title.text.trim(),
-          'category': category.text.trim(),
-          'amount': double.parse(amount.text),
-          'note': note.text.trim(),
-          'expenseDate': DateTime.now().toUtc().toIso8601String(),
-        });
-        await load();
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Expense saved')));
-      } catch (e) {
-        if (mounted)
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Unable to save expense: $e')));
-      }
-    }
-    title.dispose();
-    amount.dispose();
-    category.dispose();
-    note.dispose();
+    final saved = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Record Expense'), content: SizedBox(width: 420, child: Form(key: key, child: Column(mainAxisSize: MainAxisSize.min, children: [TextFormField(controller: title, decoration: const InputDecoration(labelText: 'Expense title'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter a title' : null), TextFormField(controller: category, decoration: const InputDecoration(labelText: 'Category')), TextFormField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Amount (LKR)'), validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter a valid amount' : null), TextFormField(controller: note, decoration: const InputDecoration(labelText: 'Note (optional)'))]))), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save Expense'))]));
+    if (saved == true) { try { await AuthService.instance.createExpense({'title': title.text.trim(), 'category': category.text.trim(), 'amount': double.parse(amount.text), 'note': note.text.trim(), 'expenseDate': DateTime.now().toUtc().toIso8601String()}); await load(); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense saved'))); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to save expense: $e'))); } }
+    title.dispose(); amount.dispose(); category.dispose(); note.dispose();
   }
 
-  Widget metric(
-    String label,
-    dynamic value,
-    IconData icon, {
-    bool highlight = false,
-  }) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: highlight ? Colors.green : primaryBlue),
-          const SizedBox(height: 12),
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(height: 5),
-          Text(
-            money(value),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 17,
-              color: highlight ? Colors.green.shade800 : darkNavy,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+  Widget metric(String label, dynamic value, IconData icon, {bool highlight = false}) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, color: highlight ? Colors.green : primaryBlue), const SizedBox(height: 12), Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)), const SizedBox(height: 5), Text(money(value), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: highlight ? Colors.green.shade800 : darkNavy))])));
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: load,
-    child: ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Advanced Reports',
-                    style: TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                      color: darkNavy,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Sales, cost of goods, gross profit and recorded expenses.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: addExpense,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Expense'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            const Text('Period: '),
-            const SizedBox(width: 10),
-            DropdownButton<String>(
-              value: period,
-              items: const [
-                DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-              ],
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() => period = v);
-                  load();
-                }
-              },
-            ),
-            const Spacer(),
-            IconButton(onPressed: load, icon: const Icon(Icons.refresh)),
-          ],
-        ),
-        if (loading)
-          const Padding(
-            padding: EdgeInsets.all(40),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (error != null)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(error!),
-            ),
-          )
-        else ...[
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              SizedBox(
-                width: 230,
-                child: metric(
-                  'Sales Revenue',
-                  report['revenue'],
-                  Icons.point_of_sale,
-                ),
-              ),
-              SizedBox(
-                width: 230,
-                child: metric(
-                  'Cost of Goods',
-                  report['costOfGoods'],
-                  Icons.inventory_2_outlined,
-                ),
-              ),
-              SizedBox(
-                width: 230,
-                child: metric(
-                  'Gross Profit',
-                  report['grossProfit'],
-                  Icons.trending_up,
-                  highlight: true,
-                ),
-              ),
-              SizedBox(
-                width: 230,
-                child: metric('Expenses', report['expenses'], Icons.money_off),
-              ),
-              SizedBox(
-                width: 230,
-                child: metric(
-                  'Net Profit',
-                  report['netProfit'],
-                  Icons.account_balance,
-                  highlight: true,
-                ),
-              ),
-            ],
+  Widget build(BuildContext context) => RefreshIndicator(onRefresh: load, child: ListView(padding: const EdgeInsets.all(24), children: [
+    Row(children: [const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Advanced Reports', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold, color: darkNavy)), SizedBox(height: 5), Text('Sales, cost of goods, gross profit and recorded expenses.', style: TextStyle(color: Colors.grey))])), ElevatedButton.icon(onPressed: addExpense, icon: const Icon(Icons.add), label: const Text('Add Expense'))]),
+    const SizedBox(height: 16),
+    Row(children: [const Text('Period: '), const SizedBox(width: 10), DropdownButton<String>(value: period, items: const [DropdownMenuItem(value: 'daily', child: Text('Daily')), DropdownMenuItem(value: 'weekly', child: Text('Weekly')), DropdownMenuItem(value: 'monthly', child: Text('Monthly'))], onChanged: (v) { if (v != null) { setState(() => period = v); load(); } }), const Spacer(), IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
+    if (loading) const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())) else if (error != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Text(error!))) else ...[
+      Wrap(spacing: 10, runSpacing: 10, children: [SizedBox(width: 230, child: metric('Sales Revenue', report['revenue'], Icons.point_of_sale)), SizedBox(width: 230, child: metric('Cost of Goods', report['costOfGoods'], Icons.inventory_2_outlined)), SizedBox(width: 230, child: metric('Gross Profit', report['grossProfit'], Icons.trending_up, highlight: true)), SizedBox(width: 230, child: metric('Expenses', report['expenses'], Icons.money_off)), SizedBox(width: 230, child: metric('Net Profit', report['netProfit'], Icons.account_balance, highlight: true))]),
+      const SizedBox(height: 12),
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(spacing: 24, runSpacing: 10, children: [Text('Invoices: ${report['invoiceCount'] ?? 0}'), Text('Units sold: ${report['unitsSold'] ?? 0}'), Text('Expense records: ${report['expenseCount'] ?? 0}'), Text('Discounts: ${money(report['discounts'])}')]))),
+      const SizedBox(height: 18),
+      const Text('Recorded Expenses', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy)),
+      const SizedBox(height: 8),
+      if ((report['expenseItems'] as List? ?? []).isEmpty)
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(18),
+            child: Text('No expenses recorded for this period.'),
           ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Wrap(
-                spacing: 24,
-                runSpacing: 10,
-                children: [
-                  Text('Invoices: ${report['invoiceCount'] ?? 0}'),
-                  Text('Units sold: ${report['unitsSold'] ?? 0}'),
-                  Text('Expense records: ${report['expenseCount'] ?? 0}'),
-                  Text('Discounts: ${money(report['discounts'])}'),
-                ],
+        )
+      else
+        ...(report['expenseItems'] as List).map<Widget>((raw) {
+          final expense = Map<String, dynamic>.from(raw);
+          final expenseDate = DateTime.tryParse(
+            expense['expenseDate']?.toString() ?? '',
+          )?.toLocal();
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.receipt_long, color: primaryBlue),
+              title: Text(expense['title']?.toString() ?? ''),
+              subtitle: Text(
+                '${expense['category'] ?? 'General'} • ${expenseDate?.toString().split(' ').first ?? ''}',
+              ),
+              trailing: Text(
+                money(expense['amount']),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
+          );
+        }),
+      const SizedBox(height: 18),
+      const Text(
+        'Recent Sales',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkNavy),
+      ),
+      const SizedBox(height: 8),
+      if ((report['recentSales'] as List? ?? []).isEmpty)
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(18),
+            child: Text('No sales in this period.'),
           ),
-          const SizedBox(height: 18),
-          const Text(
-            'Recorded Expenses',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: darkNavy,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if ((report['expenseItems'] as List? ?? []).isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(18),
-                child: Text('No expenses recorded for this period.'),
+        )
+      else
+        ...(report['recentSales'] as List).map<Widget>((raw) {
+          final sale = Map<String, dynamic>.from(raw);
+          final saleDate = DateTime.tryParse(
+            sale['createdAt']?.toString() ?? '',
+          )?.toLocal();
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.receipt, color: primaryBlue),
+              title: Text(sale['invoiceNumber']?.toString() ?? ''),
+              subtitle: Text(saleDate?.toString() ?? ''),
+              trailing: Text(
+                money(sale['totalAmount']),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-            )
-          else
-            ...(report['expenseItems'] as List).map<Widget>((raw) {
-              final expense = Map<String, dynamic>.from(raw);
-              final expenseDate = DateTime.tryParse(
-                expense['expenseDate']?.toString() ?? '',
-              )?.toLocal();
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.receipt_long, color: primaryBlue),
-                  title: Text(expense['title']?.toString() ?? ''),
-                  subtitle: Text(
-                    '${expense['category'] ?? 'General'} • ${expenseDate?.toString().split(' ').first ?? ''}',
-                  ),
-                  trailing: Text(
-                    money(expense['amount']),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              );
-            }),
-          const SizedBox(height: 18),
-          const Text(
-            'Recent Sales',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: darkNavy,
             ),
-          ),
-          const SizedBox(height: 8),
-          if ((report['recentSales'] as List? ?? []).isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(18),
-                child: Text('No sales in this period.'),
-              ),
-            )
-          else
-            ...(report['recentSales'] as List).map<Widget>((raw) {
-              final sale = Map<String, dynamic>.from(raw);
-              final saleDate = DateTime.tryParse(
-                sale['createdAt']?.toString() ?? '',
-              )?.toLocal();
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.receipt, color: primaryBlue),
-                  title: Text(sale['invoiceNumber']?.toString() ?? ''),
-                  subtitle: Text(saleDate?.toString() ?? ''),
-                  trailing: Text(
-                    money(sale['totalAmount']),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              );
-            }),
-        ],
-      ],
-    ),
-  );
+          );
+        }),
+    ],
+  ]));
 }
 
 // =====================================================
@@ -4398,12 +4319,32 @@ class StatCard extends StatelessWidget {
 // =====================================================
 
 class SalesChart extends StatelessWidget {
-  const SalesChart({super.key});
+  final List<dynamic> salesByDay;
 
-  final List<double> sales = const [35, 55, 42, 70, 50, 85, 62];
+  const SalesChart({super.key, required this.salesByDay});
+
+  double _amount(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _dayLabel(dynamic value) {
+    final date = DateTime.tryParse(value?.toString() ?? '');
+    if (date == null) return '-';
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return labels[date.toLocal().weekday - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final values = salesByDay.map((item) {
+      final map = Map<String, dynamic>.from(item as Map);
+      return _amount(map['revenue']);
+    }).toList();
+    final maxValue = values.isEmpty
+        ? 0.0
+        : values.fold<double>(0, (max, value) => value > max ? value : max);
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -4424,62 +4365,70 @@ class SalesChart extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           const Text(
-            'Weekly sales performance (demo)',
+            'Actual sales for the last 7 days',
             style: TextStyle(color: Colors.grey, fontSize: 12),
           ),
           const SizedBox(height: 30),
-          SizedBox(
-            height: 175,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(sales.length, (index) {
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: FractionallySizedBox(
-                              heightFactor: sales[index] / 100,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: index == 5
-                                      ? primaryBlue
-                                      : const Color(0xFFBFDBFE),
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(7),
+          if (salesByDay.isEmpty || maxValue <= 0)
+            const SizedBox(
+              height: 175,
+              child: Center(
+                child: Text(
+                  'No sales recorded in the last 7 days.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 175,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: List.generate(salesByDay.length, (index) {
+                  final entry =
+                      Map<String, dynamic>.from(salesByDay[index] as Map);
+                  final amount = _amount(entry['revenue']);
+                  final factor = (amount / maxValue).clamp(0.0, 1.0);
+
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: FractionallySizedBox(
+                                heightFactor: factor,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: index == salesByDay.length - 1
+                                        ? primaryBlue
+                                        : const Color(0xFFBFDBFE),
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(7),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          [
-                            'Mon',
-                            'Tue',
-                            'Wed',
-                            'Thu',
-                            'Fri',
-                            'Sat',
-                            'Sun',
-                          ][index],
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 11,
+                          const SizedBox(height: 10),
+                          Text(
+                            _dayLabel(entry['date']),
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -4563,14 +4512,31 @@ class LowStockCard extends StatelessWidget {
 // =====================================================
 
 class RecentTransactions extends StatelessWidget {
-  const RecentTransactions({super.key});
+  final List<dynamic> sales;
+  final bool loading;
 
-  final List<List<String>> transactions = const [
-    ['INV-001', 'Kasun Perera', 'LKR 12,500', 'Paid'],
-    ['INV-002', 'Nimal Silva', 'LKR 8,900', 'Paid'],
-    ['INV-003', 'Amal Fernando', 'LKR 15,200', 'Pending'],
-    ['INV-004', 'Saman Kumara', 'LKR 5,600', 'Paid'],
-  ];
+  const RecentTransactions({
+    super.key,
+    required this.sales,
+    required this.loading,
+  });
+
+  String _money(dynamic value) {
+    final amount = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    return 'LKR ${amount.toStringAsFixed(2)}';
+  }
+
+  String _date(dynamic value) {
+    final date = DateTime.tryParse(value?.toString() ?? '');
+    if (date == null) return '-';
+    final local = date.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
+        '${local.day.toString().padLeft(2, '0')} '
+        '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -4594,52 +4560,82 @@ class RecentTransactions extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Invoice')),
-                DataColumn(label: Text('Customer')),
-                DataColumn(label: Text('Amount')),
-                DataColumn(label: Text('Status')),
-              ],
-              rows: transactions.map((item) {
-                final paid = item[3] == 'Paid';
+          if (loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (sales.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: Text(
+                  'No sales have been recorded for this shop yet.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Invoice')),
+                  DataColumn(label: Text('Customer')),
+                  DataColumn(label: Text('Date')),
+                  DataColumn(label: Text('Amount')),
+                  DataColumn(label: Text('Status')),
+                ],
+                rows: sales.map((raw) {
+                  final sale = Map<String, dynamic>.from(raw as Map);
+                  final customer = sale['customerSnapshot'] is Map
+                      ? Map<String, dynamic>.from(
+                          sale['customerSnapshot'] as Map,
+                        )
+                      : <String, dynamic>{};
+                  final customerName =
+                      customer['name']?.toString().trim().isNotEmpty == true
+                          ? customer['name'].toString()
+                          : 'Walk-in customer';
+                  final status =
+                      sale['paymentStatus']?.toString().toUpperCase() ??
+                          'PAID';
 
-                return DataRow(
-                  cells: [
-                    DataCell(Text(item[0])),
-                    DataCell(Text(item[1])),
-                    DataCell(Text(item[2])),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: paid
-                              ? const Color(0xFFDCFCE7)
-                              : const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          item[3],
-                          style: TextStyle(
-                            color: paid
-                                ? Colors.green.shade800
-                                : Colors.orange.shade900,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        Text(sale['invoiceNumber']?.toString() ?? '-'),
+                      ),
+                      DataCell(Text(customerName)),
+                      DataCell(Text(_date(sale['createdAt']))),
+                      DataCell(Text(_money(sale['totalAmount']))),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            status,
+                            style: TextStyle(
+                              color: Colors.green.shade800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              }).toList(),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
         ],
       ),
     );
