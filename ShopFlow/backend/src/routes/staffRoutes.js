@@ -1,0 +1,11 @@
+import express from "express";
+import { authenticate } from "../middleware/authMiddleware.js";
+import { allowRoles } from "../middleware/roleMiddleware.js";
+import { getStaff, createStaff, updateStaff, disableStaff } from "../controllers/staffController.js";
+const router = express.Router();
+router.use(authenticate, allowRoles("owner"));
+router.get("/", getStaff);
+router.post("/", createStaff);
+router.put("/:id", updateStaff);
+router.delete("/:id", disableStaff);
+export default router;
